@@ -67,6 +67,6 @@ df = pd.DataFrame({
 
 fig = px.bar(df, x="Year", y=["Operating Cash Flow (NOI)", "Debt Service"], barmode="group",
              title="Annual Cash Flow vs. Loan Repayment")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
-st.dataframe(df, use_container_width=True)
+st.dataframe(df, width="stretch")
