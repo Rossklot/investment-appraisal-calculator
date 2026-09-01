@@ -1,0 +1,54 @@
+2026-09-01 03:57:36.933 [info] [main] Log level: Info
+2026-09-01 03:57:36.933 [info] [main] Validating found git in: "git"
+2026-09-01 03:57:36.933 [info] [main] Using git "2.53.0" from "git"
+2026-09-01 03:57:36.933 [info] [Model][doInitialScan] Initial repository scan started
+2026-09-01 03:57:36.933 [info] > git rev-parse --show-toplevel [640ms]
+2026-09-01 03:57:37.098 [info] > git rev-parse --git-dir --git-common-dir --show-superproject-working-tree [1078ms]
+2026-09-01 03:57:38.033 [info] [Model][openRepository] Opened repository (path): /workspaces/investment-appraisal-calculator
+2026-09-01 03:57:38.033 [info] [Model][openRepository] Opened repository (real path): /workspaces/investment-appraisal-calculator
+2026-09-01 03:57:38.033 [info] [Model][openRepository] Opened repository (kind): repository
+2026-09-01 03:57:38.088 [info] [Model][doInitialScan] Initial repository scan completed - repositories (1), closed repositories (0), parent repositories (0), unsafe repositories (0)
+2026-09-01 03:57:38.268 [info] > git config --get --local core.virtualfilesystem [189ms]
+2026-09-01 03:57:38.268 [warning] [Git][config] git config failed: Failed to execute git
+2026-09-01 03:57:38.316 [info] > git config --get commit.template [113ms]
+2026-09-01 03:57:38.797 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) refs/heads/main refs/remotes/main [179ms]
+2026-09-01 03:57:38.816 [warning] [Git][revParse] Unable to read file: ENOENT: no such file or directory, open '/workspaces/investment-appraisal-calculator/.git/refs/remotes/origin/main'
+2026-09-01 03:57:38.850 [info] > git check-ignore -v -z --stdin [2ms]
+2026-09-01 03:57:38.853 [info] > git rev-parse refs/remotes/origin/main [37ms]
+2026-09-01 03:57:38.921 [info] > git status -z -uall [43ms]
+2026-09-01 03:57:38.929 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [18ms]
+2026-09-01 03:57:39.395 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) refs/heads/main refs/remotes/main [321ms]
+2026-09-01 03:57:39.414 [info] > git config --get commit.template [23ms]
+2026-09-01 03:57:39.432 [info] > git config --get --local branch.main.vscode-merge-base [24ms]
+2026-09-01 03:57:39.432 [warning] [Git][config] git config failed: Failed to execute git
+2026-09-01 03:57:39.490 [info] > git reflog main --grep-reflog=branch: Created from *. [36ms]
+2026-09-01 03:57:39.515 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) refs/heads/main refs/remotes/main [83ms]
+2026-09-01 03:57:39.540 [warning] [Git][revParse] Unable to read file: ENOENT: no such file or directory, open '/workspaces/investment-appraisal-calculator/.git/refs/remotes/origin/main'
+2026-09-01 03:57:39.738 [info] > git symbolic-ref --short refs/remotes/origin/HEAD [224ms]
+2026-09-01 03:57:39.738 [info] fatal: ref refs/remotes/origin/HEAD is not a symbolic ref
+2026-09-01 03:57:39.738 [warning] [Repository][getDefaultBranch] Failed to get default branch details: Failed to execute git.
+2026-09-01 03:57:39.764 [info] > git config --local -l [58ms]
+2026-09-01 03:57:39.766 [info] > git rev-parse refs/remotes/origin/main [226ms]
+2026-09-01 03:57:39.821 [info] > git status -z -uall [33ms]
+2026-09-01 03:57:39.822 [info] > git merge-base refs/heads/main refs/remotes/origin/main [64ms]
+2026-09-01 03:57:40.142 [info] > git diff --raw --numstat --diff-filter=ADMR -z --find-renames=50% db182541ee5afe047bcb04f85c70e5d0cc76ba9f...refs/remotes/origin/main -- [307ms]
+2026-09-01 03:57:40.144 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [337ms]
+2026-09-01 03:57:40.155 [info] > git config --local -l [193ms]
+2026-09-01 03:57:40.157 [info] > git config --local -l [215ms]
+2026-09-01 03:57:40.158 [info] > git config --local -l [229ms]
+2026-09-01 03:57:40.159 [info] > git config --local -l [247ms]
+2026-09-01 03:57:41.243 [info] > git config --local -l [28ms]
+2026-09-01 03:57:41.271 [info] > git for-each-ref --count=10 --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) refs/heads/ [67ms]
+2026-09-01 03:57:41.280 [info] > git config --local -l [85ms]
+2026-09-01 03:57:41.282 [info] > git config --local -l [101ms]
+2026-09-01 03:57:41.282 [info] > git config --local -l [123ms]
+2026-09-01 03:57:41.282 [info] > git config --local -l [135ms]
+2026-09-01 03:57:41.284 [info] > git config --local -l [149ms]
+2026-09-01 03:57:41.853 [info] > git config --local -l [573ms]
+2026-09-01 03:57:41.894 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) refs/heads/main refs/remotes/main [33ms]
+2026-09-01 03:57:51.351 [info] > git config --get commit.template [14ms]
+2026-09-01 03:57:51.376 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) refs/heads/main refs/remotes/main [8ms]
+2026-09-01 03:57:51.390 [warning] [Git][revParse] Unable to read file: ENOENT: no such file or directory, open '/workspaces/investment-appraisal-calculator/.git/refs/remotes/origin/main'
+2026-09-01 03:57:51.401 [info] > git rev-parse refs/remotes/origin/main [11ms]
+2026-09-01 03:57:51.451 [info] > git status -z -uall [35ms]
+2026-09-01 03:57:51.452 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [11ms]

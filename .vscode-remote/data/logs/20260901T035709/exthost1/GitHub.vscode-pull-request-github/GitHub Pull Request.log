@@ -1,0 +1,29 @@
+2026-09-01 03:57:37.099 [warning] /home/codespace/.ssh/config: ENOENT: no such file or directory, open '/home/codespace/.ssh/config'
+2026-09-01 03:57:37.099 [info] [Activation] Extension version: 0.162.0
+2026-09-01 03:57:38.685 [info] [Authentication] Creating hub for .com
+2026-09-01 03:57:39.646 [info] [Activation] Registering built in git provider.
+2026-09-01 03:57:39.646 [info] [Activation] Looking for git repository
+2026-09-01 03:57:39.646 [info] [Activation] Found 0 repositories during activation
+2026-09-01 03:57:39.646 [info] [Activation] Git repository found, initializing review manager and pr tree view.
+2026-09-01 03:57:39.706 [info] [GitAPI] Registering git provider
+2026-09-01 03:57:39.706 [info] [Review+0] Validate state in progress
+2026-09-01 03:57:39.706 [info] [Review+0] Validating state...
+2026-09-01 03:57:40.103 [info] [FolderRepositoryManager+0] Found GitHub remote for folder /workspaces/investment-appraisal-calculator
+2026-09-01 03:57:40.148 [info] [Activation] Repo state for file:///workspaces/investment-appraisal-calculator changed.
+2026-09-01 03:57:40.149 [info] [Activation] Repo file:///workspaces/investment-appraisal-calculator has already been setup.
+2026-09-01 03:57:40.333 [info] [GitPostCommitCommands] Trying to register post commit commands.
+2026-09-01 03:57:40.333 [info] [GitPostCommitCommands] GitHub remote(s) found, registering post commit commands.
+2026-09-01 03:57:40.333 [info] [GitPostCommitCommands] Looking for remote. Comparing 1 local repo remotes with 1 GitHub repositories.
+2026-09-01 03:57:40.333 [info] [GitPostCommitCommands] Found a repo when getting post commit commands.
+2026-09-01 03:57:40.333 [info] [GitPostCommitCommands] Looking for remote. Comparing 1 local repo remotes with 1 GitHub repositories.
+2026-09-01 03:57:40.333 [info] [GitPostCommitCommands] Found a repo when getting post commit commands.
+2026-09-01 03:57:41.205 [info] [FolderRepositoryManager+0] Trying to use globalState for assignableUsers.
+2026-09-01 03:57:41.205 [info] [FolderRepositoryManager+0] First activation: associating local branches with PRs
+2026-09-01 03:57:41.244 [info] [Review+0] No matching pull request metadata found locally for current branch main
+2026-09-01 03:57:41.548 [info] [GitPostCommitCommands] Looking for remote. Comparing 1 local repo remotes with 1 GitHub repositories.
+2026-09-01 03:57:41.548 [info] [GitPostCommitCommands] Found a repo when getting post commit commands.
+2026-09-01 03:57:41.548 [info] [GitPostCommitCommands] Looking for remote. Comparing 1 local repo remotes with 1 GitHub repositories.
+2026-09-01 03:57:41.548 [info] [GitPostCommitCommands] Found a repo when getting post commit commands.
+2026-09-01 03:57:41.872 [info] [FolderRepositoryManager+0] GlobalState does not exist for assignableUsers.
+2026-09-01 03:57:42.144 [info] [FolderRepositoryManager+0] Branch association complete: 0 branches associated with PRs
+2026-09-01 03:57:42.145 [info] [Review+0] No matching pull request metadata found on GitHub for current branch main
