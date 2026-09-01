@@ -18,6 +18,18 @@ st.sidebar.header("2. Investment Metrics")
 initial_equity = st.sidebar.number_input("Initial Equity Outlay ($)", value=20000.0, step=1000.0)
 hurdle_rate = st.sidebar.number_input("Target Discount Rate / Hurdle Rate (%)", value=8.0, step=0.5) / 100
 
+# Support / Buy Me a Coffee Button in Sidebar
+st.sidebar.markdown("---")
+st.sidebar.subheader("☕ Support My Work")
+st.sidebar.markdown(
+    """
+    <a href="https://www.buymeacoffee.com/Kabamba" target="_blank">
+        <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 45px !important;width: 160px !important;" >
+    </a>
+    """,
+    unsafe_allow_html=True
+)
+
 # Loan Calculations
 net_loan_proceeds = loan_amount * (1 - discount_fee_pct)
 monthly_interest_rate = annual_interest_rate / 12
