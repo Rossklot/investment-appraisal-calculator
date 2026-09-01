@@ -27,3 +27,13 @@
 2026-09-01 03:57:41.872 [info] [FolderRepositoryManager+0] GlobalState does not exist for assignableUsers.
 2026-09-01 03:57:42.144 [info] [FolderRepositoryManager+0] Branch association complete: 0 branches associated with PRs
 2026-09-01 03:57:42.145 [info] [Review+0] No matching pull request metadata found on GitHub for current branch main
+2026-09-01 04:02:39.706 [info] [Review+0] Polling for state change...
+2026-09-01 04:02:39.706 [info] [Review+0] Validate state in progress
+2026-09-01 04:02:39.706 [info] [Review+0] Validating state...
+2026-09-01 04:02:39.759 [info] [FolderRepositoryManager+0] Found GitHub remote for folder /workspaces/investment-appraisal-calculator
+2026-09-01 04:02:39.760 [info] [FolderRepositoryManager+0] Using in-memory cached assignable users.
+2026-09-01 04:02:39.772 [info] [Review+0] No matching pull request metadata found locally for current branch main
+2026-09-01 04:02:40.510 [info] [Review+0] No matching pull request metadata found on GitHub for current branch main
+2026-09-01 04:02:40.651 [info] [Review+0] Polling found no change. Backing off to 600s.
+2026-09-01 04:12:40.670 [info] [Review+0] Skipping poll: window is not focused
+2026-09-01 04:13:42.082 [info] [Review+0] Skipping poll: window is not focused

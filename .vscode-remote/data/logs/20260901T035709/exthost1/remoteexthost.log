@@ -186,3 +186,4 @@
     at n.handleMessage (https://assets.github.dev/static/5249.7bce0cd99aee06ce68c6.js:1:111580)
     at _.handleMessage (https://assets.github.dev/static/commons-bootstrap~pfHelper-sshSession.js.4e4a205930fc96daa9a3.js:1:8174)
     at _.processMessages (https://assets.github.dev/static/commons-bootstrap~pfHelper-sshSession.js.4e4a205930fc96daa9a3.js:1:6545)
+2026-09-01 04:02:28.434 [info] ExtensionService#_doActivateExtension vscode.npm, startup: false, activationEvent: 'onTerminalQuickFixRequest:ms-vscode.npm-command'
