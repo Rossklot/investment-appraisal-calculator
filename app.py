@@ -57,6 +57,31 @@ m2.metric("Net Initial Outlay", f"${total_initial_outlay:,.2f}")
 m3.metric("Net Present Value (NPV)", f"${npv:,.2f}", delta="Profitable" if npv > 0 else "Unprofitable")
 m4.metric("Internal Rate of Return (IRR)", f"{irr * 100:.2f}%" if not pd.isna(irr) else "N/A")
 
+# Risk Analysis Summary Box
+st.markdown("---")
+st.subheader("📋 Investment Risk Assessment")
+
+if npv > 0 and irr > hurdle_rate:
+    st.success(f"""
+    **Verdict: WORTH TAKING INVESTMENT**
+    * **Net Present Value (NPV):** Project creates **${npv:,.2f}** in value above your return target.
+    * **Return Rate (IRR):** The expected return of **{irr * 100:.2f}%** comfortably clears your hurdle rate of **{hurdle_rate * 100:.2f}%**.
+    * **Debt Coverage:** Annual net cash flows are positive after covering the **${annual_debt_service:,.2f}** annual loan repayment.
+    """)
+elif npv == 0:
+    st.warning(f"""
+    **Verdict: MARGINAL / BREAK-EVEN**
+    * **Net Present Value (NPV):** Project breaks even at **$0.00**.
+    * **Return Rate (IRR):** The project matches your hurdle rate of **{hurdle_rate * 100:.2f}%** exactly without adding additional value.
+    """)
+else:
+    st.error(f"""
+    **Verdict: NOT WORTH TAKING INVESTMENT**
+    * **Net Present Value (NPV):** Project destroys value by **${npv:,.2f}**.
+    * **Return Rate (IRR):** The expected return of **{irr * 100:.2f}%** falls short of your hurdle rate of **{hurdle_rate * 100:.2f}%**.
+    * **Risk Warning:** The net operating cash flows are insufficient relative to the initial equity and debt service obligations.
+    """)
+
 # Data Table & Visualization
 df = pd.DataFrame({
     "Year": list(range(1, int(loan_term_years) + 1)),
