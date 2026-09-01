@@ -23,11 +23,17 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("☕ Support My Work")
 st.sidebar.markdown(
     """
-    <a href="https://www.buymeacoffee.com/Kabamba" target="_blank">
+    <a href="https://buymeacoffee.com/Kabamba" target="_blank">
         <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 45px !important;width: 160px !important;" >
     </a>
     """,
     unsafe_allow_html=True
+)
+
+# Feedback Section
+st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "💬 Have feedback or feature ideas? Leave a comment on [GitHub](https://github.com/Rossklot/investment-appraisal-calculator/issues) or reach out directly!"
 )
 
 # Loan Calculations
