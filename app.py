@@ -79,3 +79,15 @@ st.download_button(
     file_name="investment_appraisal_summary.csv",
     mime="text/csv"
 )
+
+# Discount Rate Sensitivity Line Chart
+st.markdown("---")
+st.subheader("NPV Sensitivity Analysis")
+
+rates = [r / 100 for r in range(1, 30)]
+npvs = [npf.npv(r, full_cash_stream) for r in rates]
+
+sens_df = pd.DataFrame({"Discount Rate (%)": [r * 100 for r in rates], "NPV ($)": npvs})
+sens_fig = px.line(sens_df, x="Discount Rate (%)", y="NPV ($)", title="NPV Sensitivity Across Discount Rates")
+sens_fig.add_hline(y=0, line_dash="dash", line_color="red")
+st.plotly_chart(sens_fig, width="stretch")
