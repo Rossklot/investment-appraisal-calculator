@@ -9,21 +9,40 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 # ==============================================================================
-# 1. PDF REPORT GENERATOR FUNCTION (PLACE HERE)
+# 1. PDF REPORT GENERATOR FUNCTION
 # ==============================================================================
-def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurdle_rate, currency="$"):
+def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurdle_rate, currency="$", company_name="Investment Appraisal Corp"):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     story = []
+    
     styles = getSampleStyleSheet()
     
-    # Header Title
-    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor('#1E3A8A'), spaceAfter=6)
-    story.append(Paragraph("Executive Investment Appraisal Report", title_style))
-    story.append(Paragraph(f"<b>Preset Selected:</b> {selected_scenario}", styles['Normal']))
+    # Custom Company Branding Header
+    company_style = ParagraphStyle(
+        'CompanyHeader',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor("#7F8C8D"),
+        alignment=0,
+        spaceAfter=10
+    )
+    story.append(Paragraph(f"<b>ORGANIZATION:</b> {company_name}", company_style))
+    story.append(Paragraph("<b>REPORT TYPE:</b> Executive Investment Evaluation", company_style))
+    story.append(Spacer(1, 10))
+    
+    # Title
+    title_style = ParagraphStyle(
+        'ReportTitle',
+        parent=styles['Heading1'],
+        fontSize=20,
+        textColor=colors.HexColor("#1E3A8A"),
+        spaceAfter=12
+    )
+    story.append(Paragraph(f"Project Appraisal: {selected_scenario}", title_style))
     story.append(Spacer(1, 12))
     
-    # Key Financial Results Table
+    # Financial Results Table
     data = [
         ["Metric", "Value"],
         ["Net Present Value (NPV)", f"{currency}{npv:,.2f}"],
@@ -33,28 +52,22 @@ def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurd
         ["Annual Debt Service", f"{currency}{annual_ds:,.2f}"]
     ]
     
-    table = Table(data, colWidths=[250, 250])
+    table = Table(data, colWidths=[250, 200])
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F3F4F6')),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1E3A8A")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
     ]))
+    
     story.append(table)
-    story.append(Spacer(1, 16))
-    
-    # Verdict / Risk Assessment
-    verdict_title = ParagraphStyle('VerdictTitle', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor('#0F766E'))
-    story.append(Paragraph("Investment Verdict & Summary", verdict_title))
-    verdict_text = "WORTH TAKING INVESTMENT" if npv > 0 else "HIGH RISK / DO NOT PROCEED"
-    story.append(Paragraph(f"<b>Overall Status:</b> {verdict_text}", styles['Normal']))
-    
     doc.build(story)
+    
     buffer.seek(0)
-    return buffer
+    return buffer.getvalue()
 
 # ==============================================================================
 # 2. STREAMLIT APP LAYOUT & SIDEBAR (CONTINUE YOUR EXISTING CODE)
@@ -96,16 +109,18 @@ scenarios = {
     }
 }
 
-# --- INDUSTRY PRESETS & CURRENCY SETUP ---
+# --- SIDEBAR SCENARIO & CURRENCY SELECTORS ---
 query_params = st.query_params
 
-# Scenario selection (ONLY ONE SELECTBOX CALL)
 default_scenario = query_params.get("scenario", list(scenarios.keys())[0])
 selected_scenario = st.sidebar.selectbox(
     "Choose a scenario preset:", 
     list(scenarios.keys()), 
     index=list(scenarios.keys()).index(default_scenario) if default_scenario in scenarios else 0
 )
+
+# ⚠️ DEFINE PRESET HERE BEFORE INPUTS USE IT!
+preset = scenarios[selected_scenario]
 
 # Currency selection
 currency_symbols = {
@@ -121,7 +136,6 @@ curr_index = list(currency_symbols.values()).index(default_curr) if default_curr
 selected_currency_label = st.sidebar.selectbox("Select Currency:", list(currency_symbols.keys()), index=curr_index)
 currency_symbol = currency_symbols[selected_currency_label]
 
-# Update query params on user selection
 st.query_params["scenario"] = selected_scenario
 st.query_params["currency"] = currency_symbol
 
