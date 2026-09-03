@@ -214,8 +214,8 @@ st.sidebar.markdown(
 
 # Loan Calculations
 net_loan_proceeds = loan_amount * (1 - discount_fee_pct)
-monthly_interest_rate = annual_interest_rate / 12
-total_months = int(loan_term_years * 12)
+monthly_interest_rate = interest_rate / 12
+total_months = int(loan_term * 12)
 
 # Monthly Debt Payment (PMT)
 monthly_payment = -npf.pmt(monthly_interest_rate, total_months, loan_amount)
