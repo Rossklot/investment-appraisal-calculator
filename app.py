@@ -309,18 +309,21 @@ df_summary = pd.DataFrame({
     "Value": [f"{currency_symbol}{npv:,.2f}", f"{irr * 100:.2f}%", f"{currency_symbol}{annual_debt_service:,.2f}", f"{currency_symbol}{total_initial_outlay:,.2f}"]
 })
 
-# Pass company_name into the PDF generator call
+# --- PDF BRANDING INPUT ---
+company_name = st.text_input("🏢 Organization Name for PDF Header:", value="Investment Appraisal Corp")
+
+# Pass variables explicitly with keyword arguments
+# Pass clean keyword arguments to match the function parameters exactly
 pdf_data = generate_pdf_report(
     selected_scenario=selected_scenario,
     npv=npv,
     irr=irr,
-    annual_ds=annual_debt_service
-    net_outlay=net_initial_outlay,
+    annual_ds=annual_debt_service,
+    net_outlay=total_initial_outlay,
     hurdle_rate=hurdle_rate * 100,
     currency=currency_symbol,
     company_name=company_name
 )
-
 
 st.download_button(
     label="📄 Download Executive PDF Report",
