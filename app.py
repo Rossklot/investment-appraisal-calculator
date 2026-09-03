@@ -224,9 +224,9 @@ annual_debt_service = monthly_payment * 12
 # Cash Flow Input Table
 st.subheader("Expected Cash Flows")
 cash_flows = []
-cols = st.columns(int(loan_term_years))
+cols = st.columns(int(loan_term))
 
-for year in range(1, int(loan_term_years) + 1):
+for year in range(1, int(loan_term) + 1):
     with cols[year - 1]:
         cf = st.number_input(f"Year {year} NOI ($)", value=35000.0, step=1000.0, key=f"cf_{year}")
         cash_flows.append(cf)
