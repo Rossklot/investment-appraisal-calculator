@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import math  # <-- Add this line
 import numpy_financial as npf
 import io
