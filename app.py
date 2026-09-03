@@ -18,41 +18,41 @@ def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurd
     
     styles = getSampleStyleSheet()
     
-    # Custom Company Branding Header
+    # Custom Organization Branding Header
     company_style = ParagraphStyle(
         'CompanyHeader',
         parent=styles['Normal'],
         fontSize=10,
         textColor=colors.HexColor("#7F8C8D"),
         alignment=0,
-        spaceAfter=10
+        spaceAfter=4
     )
-    story.append(Paragraph(f"<b>ORGANIZATION:</b> {company_name}", company_style))
+    story.append(Paragraph(f"<b>ORGANIZATION:</b> {company_name.upper()}", company_style))
     story.append(Paragraph("<b>REPORT TYPE:</b> Executive Investment Evaluation", company_style))
     story.append(Spacer(1, 10))
     
-    # Title
+    # Document Title
     title_style = ParagraphStyle(
         'ReportTitle',
         parent=styles['Heading1'],
-        fontSize=20,
+        fontSize=18,
         textColor=colors.HexColor("#1E3A8A"),
         spaceAfter=12
     )
     story.append(Paragraph(f"Project Appraisal: {selected_scenario}", title_style))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 10))
     
-    # Financial Results Table
+    # Financial Summary Table
     data = [
         ["Metric", "Value"],
         ["Net Present Value (NPV)", f"{currency}{npv:,.2f}"],
-        ["Internal Rate of Return (IRR)", f"{irr:.2f}%"],
+        ["Internal Rate of Return (IRR)", f"{irr:.2f}%" if not math.isnan(irr) else "N/A"],
         ["Target Hurdle Rate", f"{hurdle_rate:.2f}%"],
         ["Net Initial Outlay", f"{currency}{net_outlay:,.2f}"],
         ["Annual Debt Service", f"{currency}{annual_ds:,.2f}"]
     ]
     
-    table = Table(data, colWidths=[250, 200])
+    table = Table(data, colWidths=[240, 210])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1E3A8A")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
@@ -309,12 +309,33 @@ df_summary = pd.DataFrame({
     "Value": [f"{currency_symbol}{npv:,.2f}", f"{irr * 100:.2f}%", f"{currency_symbol}{annual_debt_service:,.2f}", f"{currency_symbol}{total_initial_outlay:,.2f}"]
 })
 
+# Pass company_name into the PDF generator call
+pdf_data = generate_pdf_report(
+    selected_scenario=selected_scenario,
+    npv=npv,
+    irr=irr,
+    annual_ds=annual_debt_service
+    net_outlay=net_initial_outlay,
+    hurdle_rate=hurdle_rate * 100,
+    currency=currency_symbol,
+    company_name=company_name
+)
+
+
+st.download_button(
+    label="📄 Download Executive PDF Report",
+    data=pdf_data,
+    file_name=f"{selected_scenario.replace(' ', '_')}_Report.pdf",
+    mime="application/pdf"
+    )
+# --- EXECUTIVE DOWNLOAD BUTTONS ---
 col1, col2 = st.columns(2)
+
 with col1:
     st.download_button(
         label="📄 Download Executive PDF Report",
         data=pdf_data,
-        file_name="Executive_Investment_Report.pdf",
+        file_name=f"{selected_scenario.replace(' ', '_')}_Report.pdf",
         mime="application/pdf"
     )
 with col2:
