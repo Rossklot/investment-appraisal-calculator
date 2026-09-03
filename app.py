@@ -96,6 +96,22 @@ scenarios = {
     }
 }
 
+# --- READ QUERY PARAMS FOR PERMALINK SHARING ---
+query_params = st.query_params
+
+# Use URL param if present, otherwise default to first scenario
+default_scenario = query_params.get("scenario", list(scenarios.keys())[0])
+
+selected_scenario = st.sidebar.selectbox(
+    "Choose a scenario preset:", 
+    list(scenarios.keys()), 
+    index=list(scenarios.keys()).index(default_scenario) if default_scenario in scenarios else 0
+)
+
+# Update query params whenever selection changes
+st.query_params["scenario"] = selected_scenario
+st.query_params["currency"] = currency_symbol
+
 # --- CURRENCY SELECTOR ---
 currency_symbols = {
     "USD ($)": "$",
@@ -133,6 +149,17 @@ st.sidebar.markdown(
     """,
     unsafe_allow_html=True
 )
+
+# --- SHARE SCENARIO WIDGET ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔗 Share This Model")
+
+# Encode link dynamically
+encoded_scenario = selected_scenario.replace(" ", "%20")
+share_url = f"https://kabamba-appraisal-tool.streamlit.app/?scenario={encoded_scenario}&currency={currency_symbol}"
+
+st.sidebar.code(share_url, language="text")
+st.sidebar.caption("Copy this permalink to share your exact model configuration with clients or partners.")
 
 # Feedback Section
 st.sidebar.markdown("---")
