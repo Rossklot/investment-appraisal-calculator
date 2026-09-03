@@ -18,6 +18,42 @@ st.sidebar.header("2. Investment Metrics")
 initial_equity = st.sidebar.number_input("Initial Equity Outlay ($)", value=20000.0, step=1000.0)
 hurdle_rate = st.sidebar.number_input("Target Discount Rate / Hurdle Rate (%)", value=8.0, step=0.5) / 100
 
+# --- SCENARIO PRESETS ---
+st.sidebar.header("🎯 Select Industry Preset")
+
+scenarios = {
+    "⛏️ Junior Gold Mining Project (Default)": {
+        "loan_amount": 0.0,
+        "interest_rate": 0.0,
+        "loan_term": 10,
+        "discount_fee": 0.0,
+        "initial_equity": 2000000.0,
+        "hurdle_rate": 11.0,
+        "noi": [-2000000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 0.0]
+    },
+    "🏢 Commercial Real Estate Development": {
+        "loan_amount": 3000000.0,
+        "interest_rate": 6.5,
+        "loan_term": 10,
+        "discount_fee": 1.0,
+        "initial_equity": 1000000.0,
+        "hurdle_rate": 8.5,
+        "noi": [0.0, 450000.0, 460000.0, 475000.0, 490000.0, 500000.0, 510000.0, 525000.0, 540000.0, 550000.0]
+    },
+    "☀️ Utility-Scale Solar Farm": {
+        "loan_amount": 1500000.0,
+        "interest_rate": 5.0,
+        "loan_term": 10,
+        "discount_fee": 0.5,
+        "initial_equity": 500000.0,
+        "hurdle_rate": 7.0,
+        "noi": [250000.0, 245000.0, 240000.0, 235000.0, 230000.0, 225000.0, 220000.0, 215000.0, 210000.0, 100000.0]
+    }
+}
+
+selected_scenario = st.sidebar.selectbox("Choose a scenario preset:", list(scenarios.keys()))
+preset = scenarios[selected_scenario]
+
 # Support / Buy Me a Coffee Button in Sidebar
 st.sidebar.markdown("---")
 st.sidebar.subheader("☕ Support My Work")
