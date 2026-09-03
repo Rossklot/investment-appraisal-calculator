@@ -11,7 +11,7 @@ from reportlab.lib import colors
 # ==============================================================================
 # 1. PDF REPORT GENERATOR FUNCTION (PLACE HERE)
 # ==============================================================================
-def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurdle_rate):
+def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurdle_rate, currency="$"):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     story = []
@@ -26,11 +26,11 @@ def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurd
     # Key Financial Results Table
     data = [
         ["Metric", "Value"],
-        ["Net Present Value (NPV)", f"${npv:,.2f}"],
+        ["Net Present Value (NPV)", f"{currency}{npv:,.2f}"],
         ["Internal Rate of Return (IRR)", f"{irr:.2f}%"],
         ["Target Hurdle Rate", f"{hurdle_rate:.2f}%"],
-        ["Net Initial Outlay", f"${net_outlay:,.2f}"],
-        ["Annual Debt Service", f"${annual_ds:,.2f}"]
+        ["Net Initial Outlay", f"{currency}{net_outlay:,.2f}"],
+        ["Annual Debt Service", f"{currency}{annual_ds:,.2f}"]
     ]
     
     table = Table(data, colWidths=[250, 250])
@@ -95,6 +95,18 @@ scenarios = {
         "noi": [250000.0, 245000.0, 240000.0, 235000.0, 230000.0, 225000.0, 220000.0, 215000.0, 210000.0, 100000.0]
     }
 }
+
+# --- CURRENCY SELECTOR ---
+currency_symbols = {
+    "USD ($)": "$",
+    "CAD (C$)": "C$",
+    "EUR (€)": "€",
+    "GBP (£)": "£",
+    "AUD (A$)": "A$"
+}
+
+selected_currency_label = st.sidebar.selectbox("Select Currency:", list(currency_symbols.keys()))
+currency_symbol = currency_symbols[selected_currency_label]
 
 # Sidebar - Project & Loan Inputs
 st.sidebar.header("1. Loan Setup")
@@ -162,10 +174,13 @@ st.markdown("---")
 st.subheader("Results & Performance")
 
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Annual Debt Service", f"${annual_debt_service:,.2f}")
-m2.metric("Net Initial Outlay", f"${total_initial_outlay:,.2f}")
-m3.metric("Net Present Value (NPV)", f"${npv:,.2f}", delta="Profitable" if npv > 0 else "Unprofitable")
+m1.metric("Annual Debt Service", f"{currency_symbol}{annual_debt_service:,.2f}")
+m2.metric("Net Initial Outlay", f"{currency_symbol}{total_initial_outlay:,.2f}")
+m3.metric("Net Present Value (NPV)", f"{currency_symbol}{npv:,.2f}", delta="Profitable" if npv > 0 else "Unprofitable")
 m4.metric("Internal Rate of Return (IRR)", f"{irr * 100:.2f}%" if not pd.isna(irr) else "N/A")
+
+st.write(f"- *Net Present Value (NPV):* Project creates *{currency_symbol}{npv:,.2f}* in value above your return target.")
+st.write(f"- *Debt Coverage:* Annual net cash flows are positive after covering the *{currency_symbol}{annual_debt_service:,.2f}* annual loan repayment.")
 
 # Risk Analysis Summary Box
 st.markdown("---")
@@ -226,7 +241,7 @@ pdf_data = generate_pdf_report(
 # Create summary DataFrame for CSV export
 df_summary = pd.DataFrame({
     "Metric": ["Net Present Value (NPV)", "Internal Rate of Return (IRR)", "Annual Debt Service", "Net Initial Outlay"],
-    "Value": [f"${npv:,.2f}", f"{irr * 100:.2f}%", f"${annual_debt_service:,.2f}", f"${total_initial_outlay:,.2f}"]
+    "Value": [f"{currency_symbol}{npv:,.2f}", f"{irr * 100:.2f}%", f"{currency_symbol}{annual_debt_service:,.2f}", f"{currency_symbol}{total_initial_outlay:,.2f}"]
 })
 
 col1, col2 = st.columns(2)
