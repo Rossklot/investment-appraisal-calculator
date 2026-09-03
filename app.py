@@ -339,15 +339,17 @@ with col1:
         label="📄 Download Executive PDF Report",
         data=pdf_data,
         file_name=f"{selected_scenario.replace(' ', '_')}_Report.pdf",
-        mime="application/pdf"
-        key="pdf_download_btn"
+        mime="application/pdf",
+        key="pdf_download_btn"  # Inside the function arguments
     )
+
 with col2:
     st.download_button(
         label="📥 Download Summary as CSV",
-        data=df_summary.to_csv(index=False),  # Make sure df_summary matches your DataFrame variable name
-        file_name="investment_summary.csv",
-        mime="text/csv"
+        data=df_summary.to_csv(index=False),
+        file_name=f"{selected_scenario.replace(' ', '_')}_Summary.csv",
+        mime="text/csv",
+        key="csv_download_btn"  # Distinct key for the second button
     )
 
 # Discount Rate Sensitivity Line Chart
