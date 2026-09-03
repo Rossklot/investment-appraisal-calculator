@@ -324,13 +324,13 @@ pdf_data = generate_pdf_report(
     currency=currency_symbol,
     company_name=company_name
 )
-
-st.download_button(
-    label="📄 Download Executive PDF Report",
-    data=pdf_data,
-    file_name=f"{selected_scenario.replace(' ', '_')}_Report.pdf",
-    mime="application/pdf"
-    )
+#DELETE OR REMOVE THIS EXTRA BUTTON
+#st.download_button(
+#    label="📄 Download Executive PDF Report",
+#    data=pdf_data,
+#    file_name=f"{selected_scenario.replace(' ', '_')}_Report.pdf",
+#    mime="application/pdf"
+#    )
 # --- EXECUTIVE DOWNLOAD BUTTONS ---
 col1, col2 = st.columns(2)
 
