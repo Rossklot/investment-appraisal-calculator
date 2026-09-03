@@ -108,9 +108,7 @@ selected_scenario = st.sidebar.selectbox(
     index=list(scenarios.keys()).index(default_scenario) if default_scenario in scenarios else 0
 )
 
-# Update query params whenever selection changes
-st.query_params["scenario"] = selected_scenario
-st.query_params["currency"] = currency_symbol
+
 
 # --- CURRENCY SELECTOR ---
 currency_symbols = {
@@ -123,6 +121,10 @@ currency_symbols = {
 
 selected_currency_label = st.sidebar.selectbox("Select Currency:", list(currency_symbols.keys()))
 currency_symbol = currency_symbols[selected_currency_label]
+
+# Update query params whenever selection changes
+st.query_params["scenario"] = selected_scenario
+st.query_params["currency"] = currency_symbol
 
 # Sidebar - Project & Loan Inputs
 st.sidebar.header("1. Loan Setup")
