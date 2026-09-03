@@ -340,6 +340,7 @@ with col1:
         data=pdf_data,
         file_name=f"{selected_scenario.replace(' ', '_')}_Report.pdf",
         mime="application/pdf"
+        key="pdf_download_btn"
     )
 with col2:
     st.download_button(
