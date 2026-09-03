@@ -6,17 +6,7 @@ import plotly.express as px
 st.set_page_config(page_title="Investment Appraisal Tool", layout="wide")
 
 st.title("💼 Business Investment & Loan Analysis")
-
-# Sidebar - Project & Loan Inputs
-st.sidebar.header("1. Loan Setup")
-loan_amount = st.sidebar.number_input("Loan Amount ($)", value=100000.0, step=5000.0)
-annual_interest_rate = st.sidebar.number_input("Loan Interest Rate (%)", value=6.5, step=0.1) / 100
-loan_term_years = st.sidebar.number_input("Loan Term (Years)", value=5, min_value=1)
-discount_fee_pct = st.sidebar.number_input("Loan Discount Fee (%)", value=1.0, step=0.1) / 100
-
-st.sidebar.header("2. Investment Metrics")
-initial_equity = st.sidebar.number_input("Initial Equity Outlay ($)", value=20000.0, step=1000.0)
-hurdle_rate = st.sidebar.number_input("Target Discount Rate / Hurdle Rate (%)", value=8.0, step=0.5) / 100
+st.caption("⛏️ **Specialized for Junior Mining, Infrastructure, and Commercial Real Estate Valuation**")
 
 # --- SCENARIO PRESETS ---
 st.sidebar.header("🎯 Select Industry Preset")
@@ -50,6 +40,17 @@ scenarios = {
         "noi": [250000.0, 245000.0, 240000.0, 235000.0, 230000.0, 225000.0, 220000.0, 215000.0, 210000.0, 100000.0]
     }
 }
+
+# Sidebar - Project & Loan Inputs
+st.sidebar.header("1. Loan Setup")
+loan_amount = st.sidebar.number_input("Loan Amount ($)", value=100000.0, step=5000.0)
+annual_interest_rate = st.sidebar.number_input("Loan Interest Rate (%)", value=6.5, step=0.1) / 100
+loan_term_years = st.sidebar.number_input("Loan Term (Years)", value=5, min_value=1)
+discount_fee_pct = st.sidebar.number_input("Loan Discount Fee (%)", value=1.0, step=0.1) / 100
+
+st.sidebar.header("2. Investment Metrics")
+initial_equity = st.sidebar.number_input("Initial Equity Outlay ($)", value=20000.0, step=1000.0)
+hurdle_rate = st.sidebar.number_input("Target Discount Rate / Hurdle Rate (%)", value=8.0, step=0.5) / 100
 
 selected_scenario = st.sidebar.selectbox("Choose a scenario preset:", list(scenarios.keys()))
 preset = scenarios[selected_scenario]
