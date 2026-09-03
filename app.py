@@ -96,21 +96,18 @@ scenarios = {
     }
 }
 
-# --- READ QUERY PARAMS FOR PERMALINK SHARING ---
+# --- INDUSTRY PRESETS & CURRENCY SETUP ---
 query_params = st.query_params
 
-# Use URL param if present, otherwise default to first scenario
+# Scenario selection (ONLY ONE SELECTBOX CALL)
 default_scenario = query_params.get("scenario", list(scenarios.keys())[0])
-
 selected_scenario = st.sidebar.selectbox(
     "Choose a scenario preset:", 
     list(scenarios.keys()), 
     index=list(scenarios.keys()).index(default_scenario) if default_scenario in scenarios else 0
 )
 
-
-
-# --- CURRENCY SELECTOR ---
+# Currency selection
 currency_symbols = {
     "USD ($)": "$",
     "CAD (C$)": "C$",
@@ -118,11 +115,13 @@ currency_symbols = {
     "GBP (£)": "£",
     "AUD (A$)": "A$"
 }
+default_curr = query_params.get("currency", "$")
+curr_index = list(currency_symbols.values()).index(default_curr) if default_curr in currency_symbols.values() else 0
 
-selected_currency_label = st.sidebar.selectbox("Select Currency:", list(currency_symbols.keys()))
+selected_currency_label = st.sidebar.selectbox("Select Currency:", list(currency_symbols.keys()), index=curr_index)
 currency_symbol = currency_symbols[selected_currency_label]
 
-# Update query params whenever selection changes
+# Update query params on user selection
 st.query_params["scenario"] = selected_scenario
 st.query_params["currency"] = currency_symbol
 
@@ -136,9 +135,6 @@ discount_fee_pct = st.sidebar.number_input("Loan Discount Fee (%)", value=1.0, s
 st.sidebar.header("2. Investment Metrics")
 initial_equity = st.sidebar.number_input("Initial Equity Outlay ($)", value=20000.0, step=1000.0)
 hurdle_rate = st.sidebar.number_input("Target Discount Rate / Hurdle Rate (%)", value=8.0, step=0.5) / 100
-
-selected_scenario = st.sidebar.selectbox("Choose a scenario preset:", list(scenarios.keys()))
-preset = scenarios[selected_scenario]
 
 # Support / Buy Me a Coffee Button in Sidebar
 st.sidebar.markdown("---")
