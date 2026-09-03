@@ -247,8 +247,8 @@ m1, m2, m3, m4 = st.columns(4)
 m1.metric("Annual Debt Service", f"{currency_symbol}{annual_debt_service:,.2f}")
 m2.metric("Net Initial Outlay", f"{currency_symbol}{total_initial_outlay:,.2f}")
 m3.metric("Net Present Value (NPV)", f"{currency_symbol}{npv:,.2f}", delta="Profitable" if npv > 0 else "Unprofitable")
-m4.metric("Internal Rate of Return (IRR)", f"{irr * 100:.2f}%" if not pd.isna(irr) else "N/A")
-
+# Updated line 250 using math.isnan instead of pd.isna
+m4.metric("Internal Rate of Return (IRR)", f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
 st.write(f"- *Net Present Value (NPV):* Project creates *{currency_symbol}{npv:,.2f}* in value above your return target.")
 st.write(f"- *Debt Coverage:* Annual net cash flows are positive after covering the *{currency_symbol}{annual_debt_service:,.2f}* annual loan repayment.")
 
