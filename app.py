@@ -2,9 +2,64 @@ import streamlit as st
 import numpy_financial as npf
 import pandas as pd
 import plotly.express as px
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
+# ==============================================================================
+# 1. PDF REPORT GENERATOR FUNCTION (PLACE HERE)
+# ==============================================================================
+def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurdle_rate):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    # Header Title
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor('#1E3A8A'), spaceAfter=6)
+    story.append(Paragraph("Executive Investment Appraisal Report", title_style))
+    story.append(Paragraph(f"<b>Preset Selected:</b> {selected_scenario}", styles['Normal']))
+    story.append(Spacer(1, 12))
+    
+    # Key Financial Results Table
+    data = [
+        ["Metric", "Value"],
+        ["Net Present Value (NPV)", f"${npv:,.2f}"],
+        ["Internal Rate of Return (IRR)", f"{irr:.2f}%"],
+        ["Target Hurdle Rate", f"{hurdle_rate:.2f}%"],
+        ["Net Initial Outlay", f"${net_outlay:,.2f}"],
+        ["Annual Debt Service", f"${annual_ds:,.2f}"]
+    ]
+    
+    table = Table(data, colWidths=[250, 250])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F3F4F6')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 16))
+    
+    # Verdict / Risk Assessment
+    verdict_title = ParagraphStyle('VerdictTitle', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor('#0F766E'))
+    story.append(Paragraph("Investment Verdict & Summary", verdict_title))
+    verdict_text = "WORTH TAKING INVESTMENT" if npv > 0 else "HIGH RISK / DO NOT PROCEED"
+    story.append(Paragraph(f"<b>Overall Status:</b> {verdict_text}", styles['Normal']))
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+# ==============================================================================
+# 2. STREAMLIT APP LAYOUT & SIDEBAR (CONTINUE YOUR EXISTING CODE)
+# ==============================================================================
 st.set_page_config(page_title="Investment Appraisal Tool", layout="wide")
-
 st.title("💼 Business Investment & Loan Analysis")
 st.caption("⛏️ **Specialized for Junior Mining, Infrastructure, and Commercial Real Estate Valuation**")
 
@@ -159,6 +214,30 @@ st.download_button(
     file_name="investment_appraisal_summary.csv",
     mime="text/csv"
 )
+pdf_data = generate_pdf_report(
+    selected_scenario=selected_scenario,
+    npv=npv,
+    irr=irr * 100,
+    annual_ds=annual_debt_service,
+    net_outlay=net_initial_outlay,
+    hurdle_rate=hurdle_rate
+)
+
+col1, col2 = st.columns(2)
+with col1:
+    st.download_button(
+        label="📄 Download Executive PDF Report",
+        data=pdf_data,
+        file_name="Executive_Investment_Report.pdf",
+        mime="application/pdf"
+    )
+with col2:
+    st.download_button(
+        label="📥 Download Summary as CSV",
+        data=df_summary.to_csv(index=False),
+        file_name="investment_summary.csv",
+        mime="text/csv"
+    )
 
 # Discount Rate Sensitivity Line Chart
 st.markdown("---")
