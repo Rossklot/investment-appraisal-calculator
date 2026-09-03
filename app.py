@@ -221,14 +221,7 @@ st.plotly_chart(fig, width="stretch")
 
 st.dataframe(df, width="stretch")
 
-# CSV Export Feature
-csv_data = df.to_csv(index=False).encode('utf-8')
-st.download_button(
-    label="📥 Download Summary as CSV",
-    data=csv_data,
-    file_name="investment_appraisal_summary.csv",
-    mime="text/csv"
-)
+
 pdf_data = generate_pdf_report(
     selected_scenario=selected_scenario,
     npv=npv,
