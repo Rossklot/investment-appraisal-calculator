@@ -223,6 +223,12 @@ pdf_data = generate_pdf_report(
     hurdle_rate=hurdle_rate
 )
 
+# Create summary DataFrame for CSV export
+df_summary = pd.DataFrame({
+    "Metric": ["Net Present Value (NPV)", "Internal Rate of Return (IRR)", "Annual Debt Service", "Net Initial Outlay"],
+    "Value": [f"${npv:,.2f}", f"{irr * 100:.2f}%", f"${annual_debt_service:,.2f}", f"${total_initial_outlay:,.2f}"]
+})
+
 col1, col2 = st.columns(2)
 with col1:
     st.download_button(
@@ -234,7 +240,7 @@ with col1:
 with col2:
     st.download_button(
         label="📥 Download Summary as CSV",
-        data=df_summary.to_csv(index=False),
+        data=df_summary.to_csv(index=False),  # Make sure df_summary matches your DataFrame variable name
         file_name="investment_summary.csv",
         mime="text/csv"
     )
