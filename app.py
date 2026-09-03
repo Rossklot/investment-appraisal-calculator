@@ -281,9 +281,9 @@ else:
 
 # Data Table & Visualization
 df = pd.DataFrame({
-    "Year": list(range(1, int(loan_term_years) + 1)),
+    "Year": list(range(1, int(loan_term) + 1)),
     "Operating Cash Flow (NOI)": cash_flows,
-    "Debt Service": [annual_debt_service] * int(loan_term_years),
+    "Debt Service": [annual_debt_service] * int(loan_term),
     "Net Cash Flow": net_cash_flows
 })
 
