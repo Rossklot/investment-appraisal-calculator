@@ -219,7 +219,7 @@ pdf_data = generate_pdf_report(
     npv=npv,
     irr=irr * 100,
     annual_ds=annual_debt_service,
-    net_outlay=total_initial_outlay
+    total_initial_outlay = initial_equity + (loan_amount - net_loan_proceeds),
     hurdle_rate=hurdle_rate
 )
 
