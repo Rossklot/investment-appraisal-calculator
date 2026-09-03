@@ -1,5 +1,6 @@
 import streamlit as st
 import math  # <-- Add this line
+import numpy_financial as npf
 import io
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
