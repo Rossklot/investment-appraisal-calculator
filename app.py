@@ -125,16 +125,49 @@ currency_symbol = currency_symbols[selected_currency_label]
 st.query_params["scenario"] = selected_scenario
 st.query_params["currency"] = currency_symbol
 
-# Sidebar - Project & Loan Inputs
+# --- 1. LOAN SETUP ---
 st.sidebar.header("1. Loan Setup")
-loan_amount = st.sidebar.number_input("Loan Amount ($)", value=100000.0, step=5000.0)
-annual_interest_rate = st.sidebar.number_input("Loan Interest Rate (%)", value=6.5, step=0.1) / 100
-loan_term_years = st.sidebar.number_input("Loan Term (Years)", value=5, min_value=1)
-discount_fee_pct = st.sidebar.number_input("Loan Discount Fee (%)", value=1.0, step=0.1) / 100
 
+loan_amount = st.sidebar.number_input(
+    "Loan Amount ($)", 
+    value=preset["loan_amount"], 
+    step=5000.0,
+    help="Total principal amount borrowed from the financial institution or lender."
+)
+interest_rate = st.sidebar.number_input(
+    "Loan Interest Rate (%)", 
+    value=preset["interest_rate"], 
+    step=0.25,
+    help="Annual nominal interest rate charged on the loan balance."
+) / 100
+loan_term = st.sidebar.number_input(
+    "Loan Term (Years)", 
+    value=preset["loan_term"], 
+    step=1,
+    help="Duration of the loan repayment period in full years."
+)
+discount_fee_pct = st.sidebar.number_input(
+    "Loan Discount Fee (%)", 
+    value=1.0, 
+    step=0.1,
+    help="Upfront fee or origination charge deducted by the bank at closing."
+) / 100
+
+# --- 2. INVESTMENT METRICS ---
 st.sidebar.header("2. Investment Metrics")
-initial_equity = st.sidebar.number_input("Initial Equity Outlay ($)", value=20000.0, step=1000.0)
-hurdle_rate = st.sidebar.number_input("Target Discount Rate / Hurdle Rate (%)", value=8.0, step=0.5) / 100
+
+initial_equity = st.sidebar.number_input(
+    "Initial Equity Outlay ($)", 
+    value=20000.0, 
+    step=1000.0,
+    help="Direct cash out of pocket required upfront to sponsor or initiate the project."
+)
+hurdle_rate = st.sidebar.number_input(
+    "Target Discount Rate / Hurdle Rate (%)", 
+    value=8.0, 
+    step=0.5,
+    help="Minimum required rate of return desired by equity investors/board."
+) / 100
 
 # Support / Buy Me a Coffee Button in Sidebar
 st.sidebar.markdown("---")
