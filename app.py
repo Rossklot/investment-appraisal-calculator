@@ -107,14 +107,14 @@ TRANSLATIONS = {
     },
 }
 
-# Step 2: Language Selector Logic
+# Step 2: Language Selector Logic (Clean Text Only)
 if "lang" not in st.session_state:
     st.session_state.lang = "EN"
 
 selected_lang = st.sidebar.selectbox(
     "🌐 Language / Langue",
     options=["EN", "FR"],
-    format_func=lambda x: "🇬🇧 English" if x == "EN" else "🇫🇷 Français",
+    format_func=lambda x: "English" if x == "EN" else "Français",
     key="lang_selector",
 )
 
