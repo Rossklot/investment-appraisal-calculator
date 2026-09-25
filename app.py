@@ -115,29 +115,7 @@ TRANSLATIONS = {
     },
 }
 
-# Step 2: Language Selector Logic (Clean Text Only)
-if "lang" not in st.session_state:
-    st.session_state.lang = "EN"
-
-selected_lang = st.sidebar.selectbox(
-    "🌐 Language / Langue",
-    options=["EN", "FR"],
-    format_func=lambda x: "English" if x == "EN" else "Français",
-    key="lang_selector",
-)
-
-t = TRANSLATIONS[selected_lang]
-
-
-
-# Baseline preset logic
-if selected_preset == t["preset_none"]:
-    # Leaves inputs unpopulated or set to custom individual defaults
-    pass
-
-# ==============================================================================
-# 1. PDF REPORT GENERATOR FUNCTION
-# ==============================================================================
+# --- PDF REPORT GENERATOR FUNCTION ---
 def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurdle_rate, currency="$", company_name="Investment Appraisal Corp"):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
@@ -193,83 +171,73 @@ def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurd
     buffer.seek(0)
     return buffer.getvalue()
 
-# ==============================================================================
-# 2. STREAMLIT APP LAYOUT & SIDEBAR
-# ==============================================================================
-st.set_page_config(page_title=t["page_title"], layout="wide")
+# --- INITIAL PAGE CONFIG ---
+st.set_page_config(page_title="Investment Appraisal Tool", layout="wide")
+
+# Language Selector Logic
+if "lang" not in st.session_state:
+    st.session_state.lang = "EN"
+
+selected_lang = st.sidebar.selectbox(
+    "🌐 Language / Langue",
+    options=["EN", "FR"],
+    format_func=lambda x: "English" if x == "EN" else "Français",
+    key="lang_selector",
+)
+
+t = TRANSLATIONS[selected_lang]
+
 st.title(t["app_title"])
 st.caption(t["app_caption"])
 
 # --- SCENARIO PRESETS DICTIONARY ---
 scenarios = {
     "👤 Custom / Individual Investor (Default)": {
-        "loan": 0.0,
-        "rate": 0.0,
-        "term": 5,
+        "loan_amount": 500000.0,
+        "interest_rate": 6.5,
+        "loan_term": 10,
         "discount_fee": 0.0,
         "equity": 50000.0,
         "hurdle": 8.0,
         "flows": [15000.0, 15000.0, 15000.0, 15000.0, 15000.0],
     },
     "⛏️ Junior Gold Mining Project": {
-        "loan": 2500000.0,
-        "rate": 8.5,
-        "term": 7,
+        "loan_amount": 2500000.0,
+        "interest_rate": 8.5,
+        "loan_term": 7,
         "discount_fee": 2.0,
         "equity": 500000.0,
         "hurdle": 12.0,
         "flows": [800000.0, 950000.0, 1100000.0, 1000000.0, 850000.0],
     },
     "🏢 Commercial Real Estate": {
-        "loan": 1200000.0,
-        "rate": 6.0,
-        "term": 10,
+        "loan_amount": 1200000.0,
+        "interest_rate": 6.0,
+        "loan_term": 10,
         "discount_fee": 1.0,
         "equity": 300000.0,
         "hurdle": 7.5,
         "flows": [180000.0, 185000.0, 190000.0, 195000.0, 200000.0],
     },
     "🏗️ Infrastructure Project": {
-        "loan": 5000000.0,
-        "rate": 5.5,
-        "term": 15,
+        "loan_amount": 5000000.0,
+        "interest_rate": 5.5,
+        "loan_term": 15,
         "discount_fee": 1.5,
         "equity": 1000000.0,
         "hurdle": 6.5,
         "flows": [600000.0, 650000.0, 700000.0, 750000.0, 800000.0],
     },
     "☀️ Utility-Scale Solar Farm": {
-        "loan": 1500000.0,
-        "rate": 5.0,
-        "term": 5,
+        "loan_amount": 1500000.0,
+        "interest_rate": 5.0,
+        "loan_term": 5,
         "discount_fee": 1.0,
         "equity": 20000.0,
         "hurdle": 8.0,
         "flows": [35000.0, 35000.0, 35000.0, 35000.0, 35000.0],
     },
 }
-
-# --- SINGLE SIDEBAR SELECTBOX ---
-st.sidebar.markdown(f"### {t['preset_header']}")
-
-# 1. Read query parameters for default scenario (if shared via link)
-query_params = st.query_params
-scenario_keys = list(scenarios.keys())
-
-# Match query param or default to index 0 (Custom / Individual Investor)
-default_param = query_params.get("scenario", scenario_keys[0])
-default_index = scenario_keys.index(default_param) if default_param in scenario_keys else 0
-
-# 2. Render ONLY ONE selectbox dropdown
-selected_preset_key = st.sidebar.selectbox(
-    label=t["select_preset"],
-    options=scenario_keys,
-    index=default_index,
-)
-
-# 3. Retrieve chosen scenario parameters
-selected_scenario = scenarios[selected_preset_key]
-
 
 currency_symbols = {
     "USD ($)": "$",
@@ -278,13 +246,31 @@ currency_symbols = {
     "GBP (£)": "£",
     "AUD (A$)": "A$"
 }
+
+# --- SCENARIO SELECTBOX & QUERY PARAMS ---
+st.sidebar.markdown(f"### {t['preset_header']}")
+
+query_params = st.query_params
+scenario_keys = list(scenarios.keys())
+
+default_param = query_params.get("scenario", scenario_keys[0])
+default_index = scenario_keys.index(default_param) if default_param in scenario_keys else 0
+
+selected_preset_key = st.sidebar.selectbox(
+    label=t["select_preset"],
+    options=scenario_keys,
+    index=default_index,
+    key="preset_selectbox_unique",
+)
+
+selected_scenario = scenarios[selected_preset_key]
+
 default_curr = query_params.get("currency", "$")
 curr_index = list(currency_symbols.values()).index(default_curr) if default_curr in currency_symbols.values() else 0
-
-selected_currency_label = st.sidebar.selectbox(t["select_currency"], list(currency_symbols.keys()), index=curr_index)
+selected_currency_label = st.sidebar.selectbox(t["select_currency"], list(currency_symbols.keys()), index=curr_index, key="currency_selectbox_unique")
 currency_symbol = currency_symbols[selected_currency_label]
 
-st.query_params["scenario"] = selected_scenario
+st.query_params["scenario"] = selected_preset_key
 st.query_params["currency"] = currency_symbol
 
 # --- 1. LOAN SETUP ---
@@ -292,27 +278,36 @@ st.sidebar.header(t["loan_header"])
 
 loan_amount = st.sidebar.number_input(
     t["loan_amount"], 
-    value=preset["loan_amount"], 
-    step=5000.0,
-    help=t["loan_amount_help"]
+    value=float(selected_scenario.get("loan_amount", 0.0)), 
+    step=5000.0, 
+    help=t["loan_amount_help"],
+    key="input_loan_amount"
 )
+
 interest_rate = st.sidebar.number_input(
     t["interest_rate"], 
-    value=preset["interest_rate"], 
+    value=float(selected_scenario.get("interest_rate", 6.5)), 
     step=0.25,
-    help=t["interest_rate_help"]
+    help=t["interest_rate_help"],
+    key="input_interest_rate"
 ) / 100
+
 loan_term = st.sidebar.number_input(
-    t["loan_term"], 
-    value=preset["loan_term"], 
-    step=1,
-    help=t["loan_term_help"]
+    label=t["loan_term"],
+    min_value=1.0,
+    max_value=50.0,
+    value=float(selected_scenario.get("loan_term", 10.0)),
+    step=1.0,
+    help=t["loan_term_help"],
+    key="input_loan_term",
 )
+
 discount_fee_pct = st.sidebar.number_input(
     t["discount_fee"], 
-    value=1.0, 
+    value=float(selected_scenario.get("discount_fee", 0.0)), 
     step=0.1,
-    help=t["discount_fee_help"]
+    help=t["discount_fee_help"],
+    key="input_discount_fee"
 ) / 100
 
 # --- 2. INVESTMENT METRICS ---
@@ -320,15 +315,18 @@ st.sidebar.header(t["metrics_header"])
 
 initial_equity = st.sidebar.number_input(
     t["initial_equity"], 
-    value=20000.0, 
+    value=float(selected_scenario.get("equity", 20000.0)), 
     step=1000.0,
-    help=t["initial_equity_help"]
+    help=t["initial_equity_help"],
+    key="input_initial_equity"
 )
+
 hurdle_rate = st.sidebar.number_input(
     t["hurdle_rate"], 
-    value=8.0, 
+    value=float(selected_scenario.get("hurdle", 8.0)), 
     step=0.5,
-    help=t["hurdle_rate_help"]
+    help=t["hurdle_rate_help"],
+    key="input_hurdle_rate"
 ) / 100
 
 st.sidebar.markdown("---")
@@ -345,7 +343,7 @@ st.sidebar.markdown(
 st.sidebar.markdown("---")
 st.sidebar.subheader(t["share_title"])
 
-encoded_scenario = selected_scenario.replace(" ", "%20")
+encoded_scenario = selected_preset_key.replace(" ", "%20")
 share_url = f"https://kabamba-appraisal-tool.streamlit.app/?scenario={encoded_scenario}&currency={currency_symbol}"
 
 st.sidebar.code(share_url, language="text")
@@ -354,6 +352,7 @@ st.sidebar.caption(t["share_caption"])
 st.sidebar.markdown("---")
 st.sidebar.markdown(t["feedback_text"])
 
+# --- CALCULATIONS & OUTPUT ---
 net_loan_proceeds = loan_amount * (1 - discount_fee_pct)
 monthly_interest_rate = interest_rate / 12
 total_months = int(loan_term * 12)
@@ -365,9 +364,12 @@ st.subheader(t["expected_cf"])
 cash_flows = []
 cols = st.columns(int(loan_term))
 
+default_flows = selected_scenario.get("flows", [35000.0] * int(loan_term))
+
 for year in range(1, int(loan_term) + 1):
-    with cols[year - 1]:
-        cf = st.number_input(t["year_noi"].format(year), value=35000.0, step=1000.0, key=f"cf_{year}")
+    with cols[(year - 1) % len(cols)]:
+        default_cf = float(default_flows[year - 1]) if year <= len(default_flows) else 35000.0
+        cf = st.number_input(t["year_noi"].format(year), value=default_cf, step=1000.0, key=f"cf_{year}")
         cash_flows.append(cf)
 
 net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
@@ -393,7 +395,7 @@ st.write(t["ds_desc"].format(currency_symbol, annual_debt_service))
 st.markdown("---")
 st.subheader(t["risk_header"])
 
-if npv > 0 and irr > hurdle_rate:
+if npv > 0 and (irr is not None and irr > hurdle_rate):
     st.success(f"{t['verdict_worth']}\n* **{t['npv_label']}:** {currency_symbol}{npv:,.2f}\n* **{t['irr_label']}:** {irr * 100:.2f}%")
 elif npv == 0:
     st.warning(f"{t['verdict_marginal']}\n* **{t['npv_label']}:** {currency_symbol}0.00")
@@ -414,15 +416,15 @@ st.dataframe(df, width="stretch")
 
 df_summary = pd.DataFrame({
     "Metric": [t["npv_label"], t["irr_label"], t["annual_ds"], t["net_outlay"]],
-    "Value": [f"{currency_symbol}{npv:,.2f}", f"{irr * 100:.2f}%", f"{currency_symbol}{annual_debt_service:,.2f}", f"{currency_symbol}{total_initial_outlay:,.2f}"]
+    "Value": [f"{currency_symbol}{npv:,.2f}", f"{irr * 100:.2f}%" if irr is not None else "N/A", f"{currency_symbol}{annual_debt_service:,.2f}", f"{currency_symbol}{total_initial_outlay:,.2f}"]
 })
 
 company_name = st.text_input(t["org_name_label"], value="Investment Appraisal Corp")
 
 pdf_data = generate_pdf_report(
-    selected_scenario=selected_scenario,
+    selected_scenario=selected_preset_key,
     npv=npv,
-    irr=irr * 100 if irr is not None else 0.0,
+    irr=irr * 100 if irr is not None and not math.isnan(irr) else 0.0,
     annual_ds=annual_debt_service,
     net_outlay=total_initial_outlay,
     hurdle_rate=hurdle_rate * 100,
@@ -436,7 +438,7 @@ with col1:
     st.download_button(
         label=t["dl_pdf"],
         data=pdf_data,
-        file_name=f"{selected_scenario.replace(' ', '_')}_Report.pdf",
+        file_name=f"{selected_preset_key.replace(' ', '_')}_Report.pdf",
         mime="application/pdf",
         key="pdf_download_btn"
     )
@@ -445,7 +447,7 @@ with col2:
     st.download_button(
         label=t["dl_csv"],
         data=df_summary.to_csv(index=False),
-        file_name=f"{selected_scenario.replace(' ', '_')}_Summary.csv",
+        file_name=f"{selected_preset_key.replace(' ', '_')}_Summary.csv",
         mime="text/csv",
         key="csv_download_btn"
     )
