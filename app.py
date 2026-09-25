@@ -16,6 +16,10 @@ TRANSLATIONS = {
         "app_title": "💼 Business Investment & Loan Analysis",
         "app_caption": "⛏️ **Specialized for Junior Mining, Infrastructure, and Commercial Real Estate Valuation**",
         "preset_header": "🎯 Select Industry Preset",
+        "preset_none": "Custom / Individual Investor (Default)",
+        "preset_mining": "Junior Mining / Exploration",
+        "preset_real_estate": "Commercial Real Estate",
+        "preset_infrastructure": "Infrastructure Project",
         "select_preset": "Choose a scenario preset:",
         "select_currency": "Select Currency:",
         "loan_header": "1. Loan Setup",
@@ -63,6 +67,10 @@ TRANSLATIONS = {
         "app_title": "💼 Analyse des Investissements et Emprunts",
         "app_caption": "⛏️ **Spécialisé pour le secteur minier, les infrastructures et l'immobilier commercial**",
         "preset_header": "🎯 Sélectionner un modèle sectoriel",
+        "preset_none": "Investisseur individuel / Personnalisé (Par défaut)",
+        "preset_mining": "Minière junior / Exploration",
+        "preset_real_estate": "Immobilier commercial",
+        "preset_infrastructure": "Projet d'infrastructure",
         "select_preset": "Choisir un scénario prédéfini :",
         "select_currency": "Sélectionner la devise :",
         "loan_header": "1. Configuration de l'Emprunt",
@@ -119,6 +127,26 @@ selected_lang = st.sidebar.selectbox(
 )
 
 t = TRANSLATIONS[selected_lang]
+# Step 3: Industry Scenario Preset Selection
+st.sidebar.markdown(f"### {t['preset_header']}")
+
+preset_options = [
+    t["preset_none"],           # "Custom / Individual Investor (Default)"
+    t["preset_mining"],         # "Junior Mining / Exploration"
+    t["preset_real_estate"],    # "Commercial Real Estate"
+    t["preset_infrastructure"], # "Infrastructure Project"
+]
+
+selected_preset = st.sidebar.selectbox(
+    label=t["select_preset"],
+    options=preset_options,
+    index=0,  # Defaults to Custom / Individual Investor
+)
+
+# Baseline preset logic
+if selected_preset == t["preset_none"]:
+    # Leaves inputs unpopulated or set to custom individual defaults
+    pass
 
 # ==============================================================================
 # 1. PDF REPORT GENERATOR FUNCTION
