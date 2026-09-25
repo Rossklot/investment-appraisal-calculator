@@ -127,20 +127,8 @@ selected_lang = st.sidebar.selectbox(
 )
 
 t = TRANSLATIONS[selected_lang]
-# Step 3: Industry Scenario Preset Selection
 
 
-# Keep ONLY this selectbox block:
-selected_preset = st.sidebar.selectbox(
-    label="🎯 Select Industry Preset",
-    options=[
-        "👤 Custom / Individual Investor (Default)",
-        "⛏️ Junior Gold Mining Project",
-        "🏢 Commercial Real Estate",
-        "🏗️ Infrastructure Project",
-    ],
-    index=0
-)
 
 # Baseline preset logic
 if selected_preset == t["preset_none"]:
@@ -212,49 +200,76 @@ st.set_page_config(page_title=t["page_title"], layout="wide")
 st.title(t["app_title"])
 st.caption(t["app_caption"])
 
-# --- SCENARIO PRESETS ---
-st.sidebar.header(t["preset_header"])
-
+# --- SCENARIO PRESETS DICTIONARY ---
 scenarios = {
-    "⛏️ Junior Gold Mining Project (Default)": {
-        "loan_amount": 0.0,
-        "interest_rate": 0.0,
-        "loan_term": 10,
+    "👤 Custom / Individual Investor (Default)": {
+        "loan": 0.0,
+        "rate": 0.0,
+        "term": 5,
         "discount_fee": 0.0,
-        "initial_equity": 2000000.0,
-        "hurdle_rate": 11.0,
-        "noi": [-2000000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 0.0]
+        "equity": 50000.0,
+        "hurdle": 8.0,
+        "flows": [15000.0, 15000.0, 15000.0, 15000.0, 15000.0],
     },
-    "🏢 Commercial Real Estate Development": {
-        "loan_amount": 3000000.0,
-        "interest_rate": 6.5,
-        "loan_term": 10,
+    "⛏️ Junior Gold Mining Project": {
+        "loan": 2500000.0,
+        "rate": 8.5,
+        "term": 7,
+        "discount_fee": 2.0,
+        "equity": 500000.0,
+        "hurdle": 12.0,
+        "flows": [800000.0, 950000.0, 1100000.0, 1000000.0, 850000.0],
+    },
+    "🏢 Commercial Real Estate": {
+        "loan": 1200000.0,
+        "rate": 6.0,
+        "term": 10,
         "discount_fee": 1.0,
-        "initial_equity": 1000000.0,
-        "hurdle_rate": 8.5,
-        "noi": [0.0, 450000.0, 460000.0, 475000.0, 490000.0, 500000.0, 510000.0, 525000.0, 540000.0, 550000.0]
+        "equity": 300000.0,
+        "hurdle": 7.5,
+        "flows": [180000.0, 185000.0, 190000.0, 195000.0, 200000.0],
+    },
+    "🏗️ Infrastructure Project": {
+        "loan": 5000000.0,
+        "rate": 5.5,
+        "term": 15,
+        "discount_fee": 1.5,
+        "equity": 1000000.0,
+        "hurdle": 6.5,
+        "flows": [600000.0, 650000.0, 700000.0, 750000.0, 800000.0],
     },
     "☀️ Utility-Scale Solar Farm": {
-        "loan_amount": 1500000.0,
-        "interest_rate": 5.0,
-        "loan_term": 10,
-        "discount_fee": 0.5,
-        "initial_equity": 500000.0,
-        "hurdle_rate": 7.0,
-        "noi": [250000.0, 245000.0, 240000.0, 235000.0, 230000.0, 225000.0, 220000.0, 215000.0, 210000.0, 100000.0]
-    }
+        "loan": 1500000.0,
+        "rate": 5.0,
+        "term": 5,
+        "discount_fee": 1.0,
+        "equity": 20000.0,
+        "hurdle": 8.0,
+        "flows": [35000.0, 35000.0, 35000.0, 35000.0, 35000.0],
+    },
 }
 
-query_params = st.query_params
+# --- SINGLE SIDEBAR SELECTBOX ---
+st.sidebar.markdown(f"### {t['preset_header']}")
 
-default_scenario = query_params.get("scenario", list(scenarios.keys())[0])
-selected_scenario = st.sidebar.selectbox(
-    t["select_preset"], 
-    list(scenarios.keys()), 
-    index=list(scenarios.keys()).index(default_scenario) if default_scenario in scenarios else 0
+# 1. Read query parameters for default scenario (if shared via link)
+query_params = st.query_params
+scenario_keys = list(scenarios.keys())
+
+# Match query param or default to index 0 (Custom / Individual Investor)
+default_param = query_params.get("scenario", scenario_keys[0])
+default_index = scenario_keys.index(default_param) if default_param in scenario_keys else 0
+
+# 2. Render ONLY ONE selectbox dropdown
+selected_preset_key = st.sidebar.selectbox(
+    label=t["select_preset"],
+    options=scenario_keys,
+    index=default_index,
 )
 
-preset = scenarios[selected_scenario]
+# 3. Retrieve chosen scenario parameters
+selected_scenario = scenarios[selected_preset_key]
+
 
 currency_symbols = {
     "USD ($)": "$",
