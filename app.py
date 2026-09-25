@@ -128,19 +128,18 @@ selected_lang = st.sidebar.selectbox(
 
 t = TRANSLATIONS[selected_lang]
 # Step 3: Industry Scenario Preset Selection
-st.sidebar.markdown(f"### {t['preset_header']}")
 
-preset_options = [
-    t["preset_none"],           # "Custom / Individual Investor (Default)"
-    t["preset_mining"],         # "Junior Mining / Exploration"
-    t["preset_real_estate"],    # "Commercial Real Estate"
-    t["preset_infrastructure"], # "Infrastructure Project"
-]
 
+# Keep ONLY this selectbox block:
 selected_preset = st.sidebar.selectbox(
-    label=t["select_preset"],
-    options=preset_options,
-    index=0,  # Defaults to Custom / Individual Investor
+    label="🎯 Select Industry Preset",
+    options=[
+        "👤 Custom / Individual Investor (Default)",
+        "⛏️ Junior Gold Mining Project",
+        "🏢 Commercial Real Estate",
+        "🏗️ Infrastructure Project",
+    ],
+    index=0
 )
 
 # Baseline preset logic
