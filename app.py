@@ -115,6 +115,14 @@ TRANSLATIONS = {
     },
 }
 
+# --- HELPER PARSER FOR COMMA NUMBERS ---
+def parse_number(val_str, default=0.0):
+    try:
+        clean_str = str(val_str).replace(",", "").replace("$", "").strip()
+        return float(clean_str)
+    except ValueError:
+        return default
+
 # --- PDF REPORT GENERATOR FUNCTION ---
 def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurdle_rate, currency="$", company_name="Investment Appraisal Corp"):
     buffer = io.BytesIO()
@@ -276,13 +284,13 @@ st.query_params["currency"] = currency_symbol
 # --- 1. LOAN SETUP ---
 st.sidebar.header(t["loan_header"])
 
-loan_amount = st.sidebar.number_input(
-    t["loan_amount"], 
-    value=float(selected_scenario.get("loan_amount", 0.0)), 
-    step=5000.0, 
+loan_amount_raw = st.sidebar.text_input(
+    label=t["loan_amount"], 
+    value=f"{float(selected_scenario.get('loan_amount', 0.0)):,.2f}", 
     help=t["loan_amount_help"],
-    key="input_loan_amount"
+    key="input_loan_amount_text"
 )
+loan_amount = parse_number(loan_amount_raw, default=500000.0)
 
 interest_rate = st.sidebar.number_input(
     t["interest_rate"], 
@@ -313,13 +321,13 @@ discount_fee_pct = st.sidebar.number_input(
 # --- 2. INVESTMENT METRICS ---
 st.sidebar.header(t["metrics_header"])
 
-initial_equity = st.sidebar.number_input(
-    t["initial_equity"], 
-    value=float(selected_scenario.get("equity", 20000.0)), 
-    step=1000.0,
+initial_equity_raw = st.sidebar.text_input(
+    label=t["initial_equity"], 
+    value=f"{float(selected_scenario.get('equity', 20000.0)):,.2f}", 
     help=t["initial_equity_help"],
-    key="input_initial_equity"
+    key="input_initial_equity_text"
 )
+initial_equity = parse_number(initial_equity_raw, default=20000.0)
 
 hurdle_rate = st.sidebar.number_input(
     t["hurdle_rate"], 
@@ -369,8 +377,15 @@ default_flows = selected_scenario.get("flows", [35000.0] * int(loan_term))
 for year in range(1, int(loan_term) + 1):
     with cols[(year - 1) % len(cols)]:
         default_cf = float(default_flows[year - 1]) if year <= len(default_flows) else 35000.0
-        cf = st.number_input(t["year_noi"].format(year), value=default_cf, step=1000.0, key=f"cf_{year}")
-        cash_flows.append(cf)
+        
+        cf_raw = st.text_input(
+            label=t["year_noi"].format(year),
+            value=f"{default_cf:,.2f}",
+            key=f"cf_text_{year}"
+        )
+        
+        cf_val = parse_number(cf_raw, default=default_cf)
+        cash_flows.append(cf_val)
 
 net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
 
