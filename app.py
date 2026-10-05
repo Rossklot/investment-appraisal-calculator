@@ -123,6 +123,13 @@ def parse_number(val_str, default=0.0):
     except ValueError:
         return default
 
+# --- HELPER TO PARSE FLOAT FROM QUERY PARAMS ---
+def get_qp_float(qp_dict, param_name, fallback):
+    try:
+        return float(qp_dict.get(param_name, fallback))
+    except (ValueError, TypeError):
+        return float(fallback)
+
 # --- PDF REPORT GENERATOR FUNCTION ---
 def generate_pdf_report(selected_scenario, npv, irr, annual_ds, net_outlay, hurdle_rate, currency="$", company_name="Investment Appraisal Corp"):
     buffer = io.BytesIO()
@@ -209,7 +216,7 @@ scenarios = {
         "hurdle": 8.0,
         "flows": [15000.0, 15000.0, 15000.0, 15000.0, 15000.0],
     },
-    "⛏️ Junior Gold Mining Project": {
+    "⛏️️ Junior Gold Mining Project": {
         "loan_amount": 2500000.0,
         "interest_rate": 8.5,
         "loan_term": 7,
@@ -255,7 +262,7 @@ currency_symbols = {
     "AUD (A$)": "A$"
 }
 
-# --- SCENARIO SELECTBOX & QUERY PARAMS ---
+# --- SCENARIO SELECTBOX & QUERY PARAMS READING ---
 st.sidebar.markdown(f"### {t['preset_header']}")
 
 query_params = st.query_params
@@ -278,23 +285,37 @@ curr_index = list(currency_symbols.values()).index(default_curr) if default_curr
 selected_currency_label = st.sidebar.selectbox(t["select_currency"], list(currency_symbols.keys()), index=curr_index, key="currency_selectbox_unique")
 currency_symbol = currency_symbols[selected_currency_label]
 
-st.query_params["scenario"] = selected_preset_key
-st.query_params["currency"] = currency_symbol
+# Parse inputs directly from query params if available, else fallback to selected scenario preset
+default_loan = get_qp_float(query_params, "loan", selected_scenario.get("loan_amount", 500000.0))
+default_rate = get_qp_float(query_params, "rate", selected_scenario.get("interest_rate", 6.5))
+default_term = get_qp_float(query_params, "term", selected_scenario.get("loan_term", 10.0))
+default_fee = get_qp_float(query_params, "fee", selected_scenario.get("discount_fee", 0.0))
+default_equity = get_qp_float(query_params, "equity", selected_scenario.get("equity", 50000.0))
+default_hurdle = get_qp_float(query_params, "hurdle", selected_scenario.get("hurdle", 8.0))
+
+custom_cfs_raw = query_params.get("cfs", "")
+if custom_cfs_raw:
+    try:
+        url_flows = [float(x.strip()) for x in custom_cfs_raw.split(",")]
+    except ValueError:
+        url_flows = selected_scenario.get("flows", [])
+else:
+    url_flows = selected_scenario.get("flows", [])
 
 # --- 1. LOAN SETUP ---
 st.sidebar.header(t["loan_header"])
 
 loan_amount_raw = st.sidebar.text_input(
     label=t["loan_amount"], 
-    value=f"{float(selected_scenario.get('loan_amount', 0.0)):,.2f}", 
+    value=f"{default_loan:,.2f}", 
     help=t["loan_amount_help"],
     key="input_loan_amount_text"
 )
-loan_amount = parse_number(loan_amount_raw, default=500000.0)
+loan_amount = parse_number(loan_amount_raw, default=default_loan)
 
 interest_rate = st.sidebar.number_input(
     t["interest_rate"], 
-    value=float(selected_scenario.get("interest_rate", 6.5)), 
+    value=default_rate, 
     step=0.25,
     help=t["interest_rate_help"],
     key="input_interest_rate"
@@ -304,7 +325,7 @@ loan_term = st.sidebar.number_input(
     label=t["loan_term"],
     min_value=1.0,
     max_value=50.0,
-    value=float(selected_scenario.get("loan_term", 10.0)),
+    value=default_term,
     step=1.0,
     help=t["loan_term_help"],
     key="input_loan_term",
@@ -312,7 +333,7 @@ loan_term = st.sidebar.number_input(
 
 discount_fee_pct = st.sidebar.number_input(
     t["discount_fee"], 
-    value=float(selected_scenario.get("discount_fee", 0.0)), 
+    value=default_fee, 
     step=0.1,
     help=t["discount_fee_help"],
     key="input_discount_fee"
@@ -323,20 +344,70 @@ st.sidebar.header(t["metrics_header"])
 
 initial_equity_raw = st.sidebar.text_input(
     label=t["initial_equity"], 
-    value=f"{float(selected_scenario.get('equity', 20000.0)):,.2f}", 
+    value=f"{default_equity:,.2f}", 
     help=t["initial_equity_help"],
     key="input_initial_equity_text"
 )
-initial_equity = parse_number(initial_equity_raw, default=20000.0)
+initial_equity = parse_number(initial_equity_raw, default=default_equity)
 
 hurdle_rate = st.sidebar.number_input(
     t["hurdle_rate"], 
-    value=float(selected_scenario.get("hurdle", 8.0)), 
+    value=default_hurdle, 
     step=0.5,
     help=t["hurdle_rate_help"],
     key="input_hurdle_rate"
 ) / 100
 
+# --- CALCULATIONS & CASH FLOW INPUTS ---
+net_loan_proceeds = loan_amount * (1 - discount_fee_pct)
+monthly_interest_rate = interest_rate / 12
+total_months = int(loan_term * 12)
+
+monthly_payment = -npf.pmt(monthly_interest_rate, total_months, loan_amount)
+annual_debt_service = monthly_payment * 12
+
+st.subheader(t["expected_cf"])
+cash_flows = []
+cols = st.columns(int(loan_term))
+
+for year in range(1, int(loan_term) + 1):
+    with cols[(year - 1) % len(cols)]:
+        if year <= len(url_flows):
+            default_cf = float(url_flows[year - 1])
+        else:
+            default_cf = float(url_flows[-1]) if url_flows else 35000.0
+        
+        cf_raw = st.text_input(
+            label=t["year_noi"].format(year),
+            value=f"{default_cf:,.2f}",
+            key=f"cf_text_{year}"
+        )
+        
+        cf_val = parse_number(cf_raw, default=default_cf)
+        cash_flows.append(cf_val)
+
+# --- QUERY PARAMS & PERMALINK SYNC ---
+cfs_str = ",".join([f"{cf:.2f}" for cf in cash_flows])
+
+permalink_params = {
+    "scenario": selected_preset_key,
+    "currency": currency_symbol,
+    "loan": f"{loan_amount:.2f}",
+    "rate": f"{interest_rate * 100:.2f}",
+    "term": f"{loan_term:.0f}",
+    "fee": f"{discount_fee_pct * 100:.2f}",
+    "equity": f"{initial_equity:.2f}",
+    "hurdle": f"{hurdle_rate * 100:.2f}",
+    "cfs": cfs_str
+}
+
+st.query_params.update(permalink_params)
+
+base_url = "https://kabamba-appraisal-tool.streamlit.app/?"
+param_str = "&".join([f"{k}={v.replace(' ', '%20')}" for k, v in permalink_params.items()])
+share_url = base_url + param_str
+
+# --- SIDEBAR FOOTER (SUPPORT & PERMALINK) ---
 st.sidebar.markdown("---")
 st.sidebar.subheader(t["support_title"])
 st.sidebar.markdown(
@@ -350,45 +421,14 @@ st.sidebar.markdown(
 
 st.sidebar.markdown("---")
 st.sidebar.subheader(t["share_title"])
-
-encoded_scenario = selected_preset_key.replace(" ", "%20")
-share_url = f"https://kabamba-appraisal-tool.streamlit.app/?scenario={encoded_scenario}&currency={currency_symbol}"
-
 st.sidebar.code(share_url, language="text")
 st.sidebar.caption(t["share_caption"])
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(t["feedback_text"])
 
-# --- CALCULATIONS & OUTPUT ---
-net_loan_proceeds = loan_amount * (1 - discount_fee_pct)
-monthly_interest_rate = interest_rate / 12
-total_months = int(loan_term * 12)
-
-monthly_payment = -npf.pmt(monthly_interest_rate, total_months, loan_amount)
-annual_debt_service = monthly_payment * 12
-
-st.subheader(t["expected_cf"])
-cash_flows = []
-cols = st.columns(int(loan_term))
-
-default_flows = selected_scenario.get("flows", [35000.0] * int(loan_term))
-
-for year in range(1, int(loan_term) + 1):
-    with cols[(year - 1) % len(cols)]:
-        default_cf = float(default_flows[year - 1]) if year <= len(default_flows) else 35000.0
-        
-        cf_raw = st.text_input(
-            label=t["year_noi"].format(year),
-            value=f"{default_cf:,.2f}",
-            key=f"cf_text_{year}"
-        )
-        
-        cf_val = parse_number(cf_raw, default=default_cf)
-        cash_flows.append(cf_val)
-
+# --- RESULTS & PERFORMANCE ---
 net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
-
 total_initial_outlay = initial_equity + (loan_amount - net_loan_proceeds)
 full_cash_stream = [-total_initial_outlay] + net_cash_flows
 
@@ -429,7 +469,7 @@ st.plotly_chart(fig, width="stretch")
 
 st.dataframe(df, width="stretch")
 
-# --- SUMMARY DATAFRAME FOR CSV / EXCEL DOWNLOAD ---
+# --- SUMMARY DATAFRAME FOR CSV DOWNLOAD ---
 df_summary = pd.DataFrame({
     "Metric": [
         t["loan_amount"],
