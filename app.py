@@ -429,9 +429,24 @@ st.plotly_chart(fig, width="stretch")
 
 st.dataframe(df, width="stretch")
 
+# --- SUMMARY DATAFRAME FOR CSV / EXCEL DOWNLOAD ---
 df_summary = pd.DataFrame({
-    "Metric": [t["npv_label"], t["irr_label"], t["annual_ds"], t["net_outlay"]],
-    "Value": [f"{currency_symbol}{npv:,.2f}", f"{irr * 100:.2f}%" if irr is not None else "N/A", f"{currency_symbol}{annual_debt_service:,.2f}", f"{currency_symbol}{total_initial_outlay:,.2f}"]
+    "Metric": [
+        t["loan_amount"],
+        t["net_outlay"],
+        t["annual_ds"],
+        t["npv_label"],
+        t["irr_label"],
+        t["hurdle_rate"],
+    ],
+    "Value": [
+        f"{currency_symbol}{loan_amount:,.2f}",
+        f"{currency_symbol}{total_initial_outlay:,.2f}",
+        f"{currency_symbol}{annual_debt_service:,.2f}",
+        f"{currency_symbol}{npv:,.2f}",
+        f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A",
+        f"{hurdle_rate * 100:.2f}%",
+    ]
 })
 
 company_name = st.text_input(t["org_name_label"], value="Investment Appraisal Corp")
