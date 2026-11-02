@@ -427,12 +427,34 @@ st.sidebar.caption(t["share_caption"])
 st.sidebar.markdown("---")
 st.sidebar.markdown(t["feedback_text"])
 
-# --- RESULTS & PERFORMANCE ---
-net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
-total_initial_outlay = initial_equity + (loan_amount - net_loan_proceeds)
-full_cash_stream = [-total_initial_outlay] + net_cash_flows
+# --- Advanced Financing & Compounding Setup ---
+with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
+    compounding_freq = st.selectbox(
+        "Compounding Frequency",
+        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
+        index=0,
+        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
+    )
+    eval_mode = st.radio(
+        "Evaluation Objective",
+        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
+        help="Switch between income-generating capital projects and cost-minimization procurement."
+    )
 
-npv = npf.npv(hurdle_rate, full_cash_stream)
+# Map frequency to periods per year
+freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
+m = freq_map[compounding_freq]
+periodic_rate = hurdle_rate / 100.0 / m
+
+# --- RESULTS & PERFORMANCE ---
+# Apply Periodic Compounding to cash flow discounting
+# For Quarterly: compound rate = periodic_rate, periods = year * m
+if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
+    # Cost Minimization Engine
+    npv = sum(cf / ((1 + periodic_rate) ** (t * m)) for t, cf in enumerate(cash_flows, 1)) - total_initial_outlay
+else:
+    # Standard Income / NPV Engine
+    npv = npf.npv(hurdle_rate, full_cash_stream)
 irr = npf.irr(full_cash_stream)
 
 st.markdown("---")
@@ -441,8 +463,7 @@ st.subheader(t["results_header"])
 m1, m2, m3, m4 = st.columns(4)
 m1.metric(t["annual_ds"], f"{currency_symbol}{annual_debt_service:,.2f}")
 m2.metric(t["net_outlay"], f"{currency_symbol}{total_initial_outlay:,.2f}")
-m3.metric(t["npv_label"], f"{currency_symbol}{npv:,.2f}", delta=t["profitable"] if npv > 0 else t["unprofitable"])
-m4.metric(t["irr_label"], f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
+m3.metric(t["npv_label"], f"{currency_symbol}{npv:,.2f}")m4.metric(t["irr_label"], f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
 
 st.write(t["npv_desc"].format(currency_symbol, npv))
 st.write(t["ds_desc"].format(currency_symbol, annual_debt_service))
@@ -501,25 +522,6 @@ pdf_data = generate_pdf_report(
     currency=currency_symbol,
     company_name=company_name
 )
-
-# --- Advanced Financing & Compounding Setup ---
-with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
-    compounding_freq = st.selectbox(
-        "Compounding Frequency",
-        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
-        index=0,
-        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
-    )
-    eval_mode = st.radio(
-        "Evaluation Objective",
-        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
-        help="Switch between income-generating capital projects and cost-minimization procurement."
-    )
-
-# Map frequency to periods per year
-freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
-m = freq_map[compounding_freq]
-periodic_rate = hurdle_rate / 100.0 / m
 
 col1, col2 = st.columns(2)
 
