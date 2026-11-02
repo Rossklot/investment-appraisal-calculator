@@ -130,7 +130,8 @@ TRANSLATIONS = {
         "dl_csv": "📥 Télécharger le résumé CSV",
         "sensitivity_header": "Analyse de Sensibilité de la VAN",
         "sensitivity_title": "Sensibilité de la VAN selon le taux d'actualisation",
-    },
+    }
+
 }
 
 # --- HELPER PARSER FOR COMMA NUMBERS ---
