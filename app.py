@@ -446,9 +446,14 @@ st.sidebar.caption(t["share_caption"])
 st.sidebar.markdown("---")
 st.sidebar.markdown(t["feedback_text"])
 
+# --- CALCULATE OUTLAYS & CASH FLOW STREAMS ---
+total_initial_outlay = initial_equity + (loan_amount * discount_fee_pct)
+net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
+full_cash_stream = [-total_initial_outlay] + net_cash_flows
+
 # --- RESULTS & PERFORMANCE CALCULATIONS ---
 if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
-    # Cost Minimization Engine: Compound rate per period
+    # Cost Minimization Engine: Discount recurring lease payments using periodic rate
     npv = sum(cf / ((1 + periodic_rate) ** (t * m)) for t, cf in enumerate(cash_flows, 1)) - total_initial_outlay
     irr = None
 else:
