@@ -522,7 +522,54 @@ pdf_data = generate_pdf_report(
     currency=currency_symbol,
     company_name=company_name
 )
+# --- Advanced Financing & Compounding Setup ---
+with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
+    compounding_freq = st.selectbox(
+        "Compounding Frequency",
+        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
+        index=0,
+        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
+    )
+    eval_mode = st.radio(
+        "Evaluation Objective",
+        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
+        help="Switch between income-generating capital projects and cost-minimization procurement."
+    )
 
+# Map compounding frequency to periods per year
+freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
+m = freq_map[compounding_freq]
+periodic_rate = hurdle_rate / m
+
+# Calculate combined cash flow streams
+total_initial_outlay = initial_equity + (loan_amount * discount_fee_pct)
+net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
+full_cash_stream = [-total_initial_outlay] + net_cash_flows
+
+# --- RESULTS & PERFORMANCE CALCULATIONS ---
+if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
+    # Cost Minimization Engine: Compound rate per period
+    npv = sum(cf / ((1 + periodic_rate) ** (t * m)) for t, cf in enumerate(cash_flows, 1)) - total_initial_outlay
+    irr = None
+else:
+    # Standard Income / NPV Engine
+    npv = npf.npv(hurdle_rate, full_cash_stream)
+    irr = npf.irr(full_cash_stream)
+
+# Render Metric Cards with Dynamic Labels
+st.markdown("---")
+st.subheader(t["results_header"])
+m1, m2, m3, m4 = st.columns(4)
+
+m1.metric(t["annual_ds"], f"{currency_symbol}{annual_debt_service:,.2f}")
+m2.metric(t["net_outlay"], f"{currency_symbol}{total_initial_outlay:,.2f}")
+
+if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
+    m3.metric("Net Present Cost (NPC)", f"{currency_symbol}{abs(npv):,.2f}")
+    m4.metric(t["irr_label"], "N/A (Cost Analysis)")
+else:
+    m3.metric(t["npv_label"], f"{currency_symbol}{npv:,.2f}")
+    m4.metric(t["irr_label"], f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
 col1, col2 = st.columns(2)
 
 with col1:
