@@ -71,6 +71,7 @@ TRANSLATIONS = {
         "sensitivity_header": "NPV Sensitivity Analysis",
         "sensitivity_title": "NPV Sensitivity Across Discount Rates",
     },
+    
     "FR": {
         "page_title": "Outil d'Évaluation des Investissements",
         "app_title": "💼 Analyse des Investissements et Emprunts",
