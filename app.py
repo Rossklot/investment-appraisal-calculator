@@ -502,6 +502,25 @@ pdf_data = generate_pdf_report(
     company_name=company_name
 )
 
+# --- Advanced Financing & Compounding Setup ---
+with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
+    compounding_freq = st.selectbox(
+        "Compounding Frequency",
+        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
+        index=0,
+        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
+    )
+    eval_mode = st.radio(
+        "Evaluation Objective",
+        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
+        help="Switch between income-generating capital projects and cost-minimization procurement."
+    )
+
+# Map frequency to periods per year
+freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
+m = freq_map[compounding_freq]
+periodic_rate = hurdle_rate / 100.0 / m
+
 col1, col2 = st.columns(2)
 
 with col1:
