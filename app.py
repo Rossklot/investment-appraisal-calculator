@@ -435,49 +435,35 @@ with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
         index=0,
         help="Select compounding frequency for accurate lease, loan, or investment appraisal."
     )
-    eval_mode = st.radio(
-        "Evaluation Objective",
-        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
-        help="Switch between income-generating capital projects and cost-minimization procurement."
-    )
+    # --- CALCULATE OUTLAYS & CASH FLOW STREAMS ---
+total_initial_outlay = initial_equity + (loan_amount * discount_fee_pct)
+net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
+full_cash_stream = [-total_initial_outlay] + net_cash_flows
 
-# Map frequency to periods per year
-freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
-m = freq_map[compounding_freq]
-periodic_rate = hurdle_rate / 100.0 / m
-
-# --- RESULTS & PERFORMANCE ---
-# Apply Periodic Compounding to cash flow discounting
-# For Quarterly: compound rate = periodic_rate, periods = year * m
+# --- RESULTS & PERFORMANCE CALCULATIONS ---
 if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
-    # Cost Minimization Engine
+    # Cost Minimization Engine: Compound rate per period
     npv = sum(cf / ((1 + periodic_rate) ** (t * m)) for t, cf in enumerate(cash_flows, 1)) - total_initial_outlay
+    irr = None
 else:
     # Standard Income / NPV Engine
     npv = npf.npv(hurdle_rate, full_cash_stream)
-irr = npf.irr(full_cash_stream)
+    irr = npf.irr(full_cash_stream)
 
+# Render Metric Cards with Dynamic Labels
 st.markdown("---")
 st.subheader(t["results_header"])
-
 m1, m2, m3, m4 = st.columns(4)
+
 m1.metric(t["annual_ds"], f"{currency_symbol}{annual_debt_service:,.2f}")
 m2.metric(t["net_outlay"], f"{currency_symbol}{total_initial_outlay:,.2f}")
-m3.metric(t["npv_label"], f"{currency_symbol}{npv:,.2f}")
-m4.metric(t["irr_label"], f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
 
-st.write(t["npv_desc"].format(currency_symbol, npv))
-st.write(t["ds_desc"].format(currency_symbol, annual_debt_service))
-
-st.markdown("---")
-st.subheader(t["risk_header"])
-
-if npv > 0 and (irr is not None and irr > hurdle_rate):
-    st.success(f"{t['verdict_worth']}\n* **{t['npv_label']}:** {currency_symbol}{npv:,.2f}\n* **{t['irr_label']}:** {irr * 100:.2f}%")
-elif npv == 0:
-    st.warning(f"{t['verdict_marginal']}\n* **{t['npv_label']}:** {currency_symbol}0.00")
+if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
+    m3.metric("Net Present Cost (NPC)", f"{currency_symbol}{abs(npv):,.2f}")
+    m4.metric(t["irr_label"], "N/A (Cost Analysis)")
 else:
-    st.error(f"{t['verdict_not_worth']}\n* **{t['npv_label']}:** {currency_symbol}{npv:,.2f}")
+    m3.metric(t["npv_label"], f"{currency_symbol}{npv:,.2f}")
+    m4.metric(t["irr_label"], f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
 
 df = pd.DataFrame({
     "Year": list(range(1, int(loan_term) + 1)),
