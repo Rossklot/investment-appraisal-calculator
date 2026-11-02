@@ -49,6 +49,15 @@ TRANSLATIONS = {
         "irr_label": "Internal Rate of Return (IRR)",
         "profitable": "Profitable",
         "unprofitable": "Unprofitable",
+        "advanced_setup": "⚙️ Advanced Financing & Compounding",
+        "compounding_freq": "Compounding Frequency",
+        "compounding_help": "Select compounding frequency for accurate lease, loan, or investment appraisal.",
+        "eval_mode": "Evaluation Objective",
+        "eval_help": "Switch between income-generating capital projects and cost-minimization procurement.",
+        "mode_income": "Capital Investment (Income / NPV)",
+        "mode_lease": "Equipment Lease vs. Buy (Cost Minimization)",
+        "npc_label": "Net Present Cost (NPC)",
+        "irr_na": "N/A (Cost Analysis)",
         "npv_desc": "- *Net Present Value (NPV):* Project creates *{}{:,.2f}* in value above your return target.",
         "ds_desc": "- *Debt Coverage:* Annual net cash flows are positive after covering the *{}{:,.2f}* annual loan repayment.",
         "risk_header": "📋 Investment Risk Assessment",
@@ -100,6 +109,15 @@ TRANSLATIONS = {
         "irr_label": "Taux de Rentabilité Interne (TRI)",
         "profitable": "Rentable",
         "unprofitable": "Non rentable",
+        "advanced_setup": "⚙️ Configuration avancée et capitalisation",
+        "compounding_freq": "Fréquence de capitalisation",
+        "compounding_help": "Sélectionnez la fréquence de capitalisation pour une évaluation précise du prêt, du bail ou de l'investissement.",
+        "eval_mode": "Objectif d'évaluation",
+        "eval_help": "Basculez entre les projets d'investissement générateurs de revenus et l'optimisation des coûts d'approvisionnement.",
+        "mode_income": "Investissement en capital (Revenus / VAN)",
+        "mode_lease": "Location d'équipement vs Achat (Minimisation des coûts)",
+        "npc_label": "Coût Net Présent (NPC)",
+        "irr_na": "N/D (Analyse de coûts)",
         "npv_desc": "- *Valeur Actuelle Nette (VAN) :* Le projet crée *{}{:,.2f}* de valeur au-delà de votre objectif.",
         "ds_desc": "- *Couverture de la dette :* Les flux nets sont positifs après le paiement de *{}{:,.2f}* pour la dette.",
         "risk_header": "📋 Évaluation des Risques d'Investissement",
@@ -359,20 +377,19 @@ hurdle_rate = st.sidebar.number_input(
 ) / 100
 
 # --- Advanced Financing & Compounding Setup ---
-with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
+with st.sidebar.expander(t["advanced_setup"]):
     compounding_freq = st.selectbox(
-        "Compounding Frequency",
+        t["compounding_freq"],
         ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
         index=0,
-        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
+        help=t["compounding_help"]
     )
     eval_mode = st.radio(
-        "Evaluation Objective",
-        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
-        help="Switch between income-generating capital projects and cost-minimization procurement."
+        t["eval_mode"],
+        [t["mode_income"], t["mode_lease"]],
+        help=t["eval_help"]
     )
 
-# Map compounding frequency to periods per year
 freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
 m = freq_map[compounding_freq]
 periodic_rate = hurdle_rate / m
@@ -452,7 +469,7 @@ net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
 full_cash_stream = [-total_initial_outlay] + net_cash_flows
 
 # --- RESULTS & PERFORMANCE CALCULATIONS ---
-if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
+if eval_mode == t["mode_lease"]:
     # Cost Minimization Engine: Discount recurring lease payments using periodic rate
     npv = sum(cf / ((1 + periodic_rate) ** (t * m)) for t, cf in enumerate(cash_flows, 1)) - total_initial_outlay
     irr = None
@@ -469,9 +486,10 @@ m1, m2, m3, m4 = st.columns(4)
 m1.metric(t["annual_ds"], f"{currency_symbol}{annual_debt_service:,.2f}")
 m2.metric(t["net_outlay"], f"{currency_symbol}{total_initial_outlay:,.2f}")
 
-if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
-    m3.metric("Net Present Cost (NPC)", f"{currency_symbol}{abs(npv):,.2f}")
-    m4.metric(t["irr_label"], "N/A (Cost Analysis)")
+# --- AFTER (FULLY TRANSLATED) ---
+if eval_mode == t["mode_lease"]:
+    m3.metric(t["npc_label"], f"{currency_symbol}{abs(npv):,.2f}")
+    m4.metric(t["irr_label"], t["irr_na"])
 else:
     m3.metric(t["npv_label"], f"{currency_symbol}{npv:,.2f}")
     m4.metric(t["irr_label"], f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
