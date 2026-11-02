@@ -358,6 +358,25 @@ hurdle_rate = st.sidebar.number_input(
     key="input_hurdle_rate"
 ) / 100
 
+# --- Advanced Financing & Compounding Setup ---
+with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
+    compounding_freq = st.selectbox(
+        "Compounding Frequency",
+        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
+        index=0,
+        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
+    )
+    eval_mode = st.radio(
+        "Evaluation Objective",
+        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
+        help="Switch between income-generating capital projects and cost-minimization procurement."
+    )
+
+# Map compounding frequency to periods per year
+freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
+m = freq_map[compounding_freq]
+periodic_rate = hurdle_rate / m
+
 # --- CALCULATIONS & CASH FLOW INPUTS ---
 net_loan_proceeds = loan_amount * (1 - discount_fee_pct)
 monthly_interest_rate = interest_rate / 12
@@ -439,25 +458,6 @@ with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
 total_initial_outlay = initial_equity + (loan_amount * discount_fee_pct)
 net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
 full_cash_stream = [-total_initial_outlay] + net_cash_flows
-
-# --- Advanced Financing & Compounding Setup ---
-with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
-    compounding_freq = st.selectbox(
-        "Compounding Frequency",
-        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
-        index=0,
-        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
-    )
-    eval_mode = st.radio(
-        "Evaluation Objective",
-        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
-        help="Switch between income-generating capital projects and cost-minimization procurement."
-    )
-
-# Map compounding frequency to periods per year
-freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
-m = freq_map[compounding_freq]
-periodic_rate = hurdle_rate / m
 
 # --- RESULTS & PERFORMANCE CALCULATIONS ---
 if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
