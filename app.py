@@ -440,6 +440,25 @@ total_initial_outlay = initial_equity + (loan_amount * discount_fee_pct)
 net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
 full_cash_stream = [-total_initial_outlay] + net_cash_flows
 
+# --- Advanced Financing & Compounding Setup ---
+with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
+    compounding_freq = st.selectbox(
+        "Compounding Frequency",
+        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
+        index=0,
+        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
+    )
+    eval_mode = st.radio(
+        "Evaluation Objective",
+        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
+        help="Switch between income-generating capital projects and cost-minimization procurement."
+    )
+
+# Map compounding frequency to periods per year
+freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
+m = freq_map[compounding_freq]
+periodic_rate = hurdle_rate / m
+
 # --- RESULTS & PERFORMANCE CALCULATIONS ---
 if eval_mode == "Equipment Lease vs. Buy (Cost Minimization)":
     # Cost Minimization Engine: Compound rate per period
@@ -509,24 +528,6 @@ pdf_data = generate_pdf_report(
     currency=currency_symbol,
     company_name=company_name
 )
-# --- Advanced Financing & Compounding Setup ---
-with st.sidebar.expander("⚙️ Advanced Financing & Compounding"):
-    compounding_freq = st.selectbox(
-        "Compounding Frequency",
-        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
-        index=0,
-        help="Select compounding frequency for accurate lease, loan, or investment appraisal."
-    )
-    eval_mode = st.radio(
-        "Evaluation Objective",
-        ["Capital Investment (Income / NPV)", "Equipment Lease vs. Buy (Cost Minimization)"],
-        help="Switch between income-generating capital projects and cost-minimization procurement."
-    )
-
-# Map compounding frequency to periods per year
-freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
-m = freq_map[compounding_freq]
-periodic_rate = hurdle_rate / m
 
 # Calculate combined cash flow streams
 total_initial_outlay = initial_equity + (loan_amount * discount_fee_pct)
