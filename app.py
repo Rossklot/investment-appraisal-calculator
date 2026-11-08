@@ -638,7 +638,7 @@ with st.expander(t.get('audit_expander', '📊 Debt Service Coverage & Sensitivi
         )
 
     # --------------------------------------------------------------------------
-    # DYNAMIC CALCULATIONS WITH FALLBACK VARIABLE CHECKS
+    # DYNAMIC CALCULATIONS WITH SAFE VARIABLE FALLBACKS
     # --------------------------------------------------------------------------
     stress_multiplier = 1.0 + (revenue_stress / 100.0) - (cost_stress / 100.0)
 
