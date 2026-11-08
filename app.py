@@ -50,6 +50,15 @@ TRANSLATIONS = {
         "irr_label": "Internal Rate of Return (IRR)",
         "profitable": "Profitable",
         "unprofitable": "Unprofitable",
+        "advanced_setup": "⚙️ Advanced Financing & Compounding",
+        "compounding_freq": "Compounding Frequency",
+        "compounding_help": "Select compounding frequency for accurate lease, loan, or investment appraisal.",
+        "eval_mode": "Evaluation Objective",
+        "eval_help": "Switch between income-generating capital projects and cost-minimization procurement.",
+        "mode_income": "Capital Investment (Income / NPV)",
+        "mode_lease": "Equipment Lease vs. Buy (Cost Minimization)",
+        "npc_label": "Net Present Cost (NPC)",
+        "irr_na": "N/A (Cost Analysis)",
         "npv_desc": "- *Net Present Value (NPV):* Project creates *{}{:,.2f}* in value above your return target.",
         "ds_desc": "- *Debt Coverage:* Annual net cash flows are positive after covering the *{}{:,.2f}* annual loan repayment.",
         "risk_header": "📋 Investment Risk Assessment",
@@ -101,6 +110,15 @@ TRANSLATIONS = {
         "irr_label": "Taux de Rentabilité Interne (TRI)",
         "profitable": "Rentable",
         "unprofitable": "Non rentable",
+        "advanced_setup": "⚙️ Configuration avancée et capitalisation",
+        "compounding_freq": "Fréquence de capitalisation",
+        "compounding_help": "Sélectionnez la fréquence de capitalisation pour une évaluation précise du prêt, du bail ou de l'investissement.",
+        "eval_mode": "Objectif d'évaluation",
+        "eval_help": "Basculez entre les projets d'investissement générateurs de revenus et l'optimisation des coûts d'approvisionnement.",
+        "mode_income": "Investissement en capital (Revenus / VAN)",
+        "mode_lease": "Location d'équipement vs Achat (Minimisation des coûts)",
+        "npc_label": "Coût Net Présent (NPC)",
+        "irr_na": "N/D (Analyse de coûts)",
         "npv_desc": "- *Valeur Actuelle Nette (VAN) :* Le projet crée *{}{:,.2f}* de valeur au-delà de votre objectif.",
         "ds_desc": "- *Couverture de la dette :* Les flux nets sont positifs après le paiement de *{}{:,.2f}* pour la dette.",
         "risk_header": "📋 Évaluation des Risques d'Investissement",
@@ -113,7 +131,8 @@ TRANSLATIONS = {
         "dl_csv": "📥 Télécharger le résumé CSV",
         "sensitivity_header": "Analyse de Sensibilité de la VAN",
         "sensitivity_title": "Sensibilité de la VAN selon le taux d'actualisation",
-    },
+    }
+
 }
 
 # --- HELPER PARSER FOR COMMA NUMBERS ---
@@ -359,6 +378,24 @@ hurdle_rate = st.sidebar.number_input(
     key="input_hurdle_rate"
 ) / 100
 
+# --- Advanced Financing & Compounding Setup ---
+with st.sidebar.expander(t["advanced_setup"]):
+    compounding_freq = st.selectbox(
+        t["compounding_freq"],
+        ["Annual", "Semi-Annual", "Quarterly", "Monthly"],
+        index=0,
+        help=t["compounding_help"]
+    )
+    eval_mode = st.radio(
+        t["eval_mode"],
+        [t["mode_income"], t["mode_lease"]],
+        help=t["eval_help"]
+    )
+
+freq_map = {"Annual": 1, "Semi-Annual": 2, "Quarterly": 4, "Monthly": 12}
+m = freq_map[compounding_freq]
+periodic_rate = hurdle_rate / m
+
 # --- CALCULATIONS & CASH FLOW INPUTS ---
 net_loan_proceeds = loan_amount * (1 - discount_fee_pct)
 monthly_interest_rate = interest_rate / 12
@@ -428,35 +465,36 @@ st.sidebar.caption(t["share_caption"])
 st.sidebar.markdown("---")
 st.sidebar.markdown(t["feedback_text"])
 
-# --- RESULTS & PERFORMANCE ---
+# --- CALCULATE OUTLAYS & CASH FLOW STREAMS ---
+total_initial_outlay = initial_equity + (loan_amount * discount_fee_pct)
 net_cash_flows = [cf - annual_debt_service for cf in cash_flows]
-total_initial_outlay = initial_equity + (loan_amount - net_loan_proceeds)
 full_cash_stream = [-total_initial_outlay] + net_cash_flows
 
-npv = npf.npv(hurdle_rate, full_cash_stream)
-irr = npf.irr(full_cash_stream)
+# --- RESULTS & PERFORMANCE CALCULATIONS ---
+if eval_mode == t["mode_lease"]:
+    # Cost Minimization Engine: Discount recurring lease payments using periodic rate
+    npv = sum(cf / ((1 + periodic_rate) ** (t * m)) for t, cf in enumerate(cash_flows, 1)) - total_initial_outlay
+    irr = None
+else:
+    # Standard Income / NPV Engine
+    npv = npf.npv(hurdle_rate, full_cash_stream)
+    irr = npf.irr(full_cash_stream)
 
+# Render Metric Cards with Dynamic Labels
 st.markdown("---")
 st.subheader(t["results_header"])
-
 m1, m2, m3, m4 = st.columns(4)
+
 m1.metric(t["annual_ds"], f"{currency_symbol}{annual_debt_service:,.2f}")
 m2.metric(t["net_outlay"], f"{currency_symbol}{total_initial_outlay:,.2f}")
-m3.metric(t["npv_label"], f"{currency_symbol}{npv:,.2f}", delta=t["profitable"] if npv > 0 else t["unprofitable"])
-m4.metric(t["irr_label"], f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
 
-st.write(t["npv_desc"].format(currency_symbol, npv))
-st.write(t["ds_desc"].format(currency_symbol, annual_debt_service))
-
-st.markdown("---")
-st.subheader(t["risk_header"])
-
-if npv > 0 and (irr is not None and irr > hurdle_rate):
-    st.success(f"{t['verdict_worth']}\n* **{t['npv_label']}:** {currency_symbol}{npv:,.2f}\n* **{t['irr_label']}:** {irr * 100:.2f}%")
-elif npv == 0:
-    st.warning(f"{t['verdict_marginal']}\n* **{t['npv_label']}:** {currency_symbol}0.00")
+# --- AFTER (FULLY TRANSLATED) ---
+if eval_mode == t["mode_lease"]:
+    m3.metric(t["npc_label"], f"{currency_symbol}{abs(npv):,.2f}")
+    m4.metric(t["irr_label"], t["irr_na"])
 else:
-    st.error(f"{t['verdict_not_worth']}\n* **{t['npv_label']}:** {currency_symbol}{npv:,.2f}")
+    m3.metric(t["npv_label"], f"{currency_symbol}{npv:,.2f}")
+    m4.metric(t["irr_label"], f"{irr * 100:.2f}%" if irr is not None and not math.isnan(irr) else "N/A")
 
 df = pd.DataFrame({
     "Year": list(range(1, int(loan_term) + 1)),
@@ -532,6 +570,7 @@ sens_df = pd.DataFrame({"Discount Rate (%)": [r * 100 for r in rates], "NPV ($)"
 sens_fig = px.line(sens_df, x="Discount Rate (%)", y="NPV ($)", title=t["sensitivity_title"])
 sens_fig.add_hline(y=0, line_dash="dash", line_color="red")
 st.plotly_chart(sens_fig, width="stretch")
+
  
 # ==============================================================================
 # 💎 STEP 1: INSTITUTIONAL RISK & DSCR AUDIT MODULE
@@ -604,3 +643,5 @@ with col_metrics:
         "💡 **Institutional Audit Note:** Senior lenders require minimum Debt Service Coverage Ratios (DSCR) of **1.25x–1.35x**. "
         "This dynamic sensitivity module proves project solvency under adverse macro price movements."
     )
+=======
+>>>>>>> 5ffd980af6623741bb06b34f44cc4f4fba020620
