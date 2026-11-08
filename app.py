@@ -71,6 +71,22 @@ TRANSLATIONS = {
         "dl_csv": "📥 Download Summary as CSV",
         "sensitivity_header": "NPV Sensitivity Analysis",
         "sensitivity_title": "NPV Sensitivity Across Discount Rates",
+        "audit_title": "💎 Institutional Risk & DSCR Audit",
+"audit_caption": "Evaluate debt service safety buffers and revenue stress sensitivity across operational lifecycles.",
+"audit_expander": "📊 Debt Service Coverage & Sensitivity Matrix",
+"stress_inputs": "Live Stress Inputs",
+"rev_stress_label": "Revenue / Commodity Spot Price Stress (%)",
+"rev_stress_help": "Simulates market price shifts (e.g., Gold spot adjustments relative to baseline).",
+"cost_stress_label": "OPEX Cost Inflation Stress (%)",
+"cost_stress_help": "Simulates operational cost overruns or supply chain inflation.",
+"valuation_impact": "Valuation Impact",
+"stressed_npv_label": "Stressed NPV",
+"net_stress_shift": "Net Stress Shift",
+"covenant_status": "**Senior Debt Covenants Status:**",
+"dscr_success": "✅ Peak DSCR Protection: **{dscr:.2f}x** (Exceeds 1.30x Banking Standard)",
+"dscr_warning": "⚠️ Debt Coverage Tight: **{dscr:.2f}x** (Breaches 1.30x covenant buffer)",
+"dscr_error": "🚨 DSCR Deficit: **{dscr:.2f}x** (Requires Debt Service Reserve Fund drawdown)",
+"audit_note": "💡 **Institutional Audit Note:** Senior lenders require minimum Debt Service Coverage Ratios (DSCR) of **1.25x–1.35x**. This dynamic sensitivity module proves project solvency under adverse macro price movements."
     },
     "FR": {
         "page_title": "Outil d'Évaluation des Investissements",
@@ -131,6 +147,22 @@ TRANSLATIONS = {
         "dl_csv": "📥 Télécharger le résumé CSV",
         "sensitivity_header": "Analyse de Sensibilité de la VAN",
         "sensitivity_title": "Sensibilité de la VAN selon le taux d'actualisation",
+        "audit_title": "💎 Audit du Risque Institutionnel et du DSCR",
+"audit_caption": "Évaluer les coussins de sécurité du service de la dette et la sensibilité aux tensions de revenus.",
+"audit_expander": "📊 Couverture du Service de la Dette et Matrice de Sensibilité",
+"stress_inputs": "Données de Stress en Direct",
+"rev_stress_label": "Stress sur Revenus / Prix du Marché (%)",
+"rev_stress_help": "Simule les variations de prix du marché (ex. ajustements du cours de l'or par rapport à la base).",
+"cost_stress_label": "Inflation des Coûts d'Exploitation (%)",
+"cost_stress_help": "Simule les dépassements de coûts d'exploitation ou l'inflation de la chaîne d'approvisionnement.",
+"valuation_impact": "Impact sur la Valorisation",
+"stressed_npv_label": "VAN Sous Stress",
+"net_stress_shift": "Variation Nette de Stress",
+"covenant_status": "**Statut des Engagements de la Dette Senior:**",
+"dscr_success": "✅ Protection DSCR Maximale: **{dscr:.2f}x** (Dépasse la norme bancaire de 1,30x)",
+"dscr_warning": "⚠️ Couverture de Dette Tendue: **{dscr:.2f}x** (En dessous du coussin de 1,30x)",
+"dscr_error": "🚨 Déficit de DSCR: **{dscr:.2f}x** (Nécessite le tirage du fonds de réserve pour la dette)",
+"audit_note": "💡 **Note d'Audit Institutionnel:** Les prêteurs seniors exigent des ratios minimaux de couverture du service de la dette (DSCR) de **1,25x à 1,35x**. Ce module dynamique démontre la solvabilité du projet lors de mouvements macroéconomiques défavorables."
     }
 
 }
@@ -573,93 +605,80 @@ st.plotly_chart(sens_fig, width="stretch")
 
  
 # ==============================================================================
-# 💎 STEP 1: INSTITUTIONAL RISK & DSCR AUDIT MODULE
+# 💎 STEP 1: INSTITUTIONAL RISK & DSCR AUDIT MODULE (BILINGUAL)
 # ==============================================================================
 st.markdown("---")
-st.markdown("## 💎 Institutional Risk & DSCR Audit")
-st.caption("Evaluate debt service safety buffers and revenue stress sensitivity across operational lifecycles.")
+st.markdown(f"## {t.get('audit_title', '💎 Institutional Risk & DSCR Audit')}")
+st.caption(t.get('audit_caption', 'Evaluate debt service safety buffers and revenue stress sensitivity across operational lifecycles.'))
 
-with st.expander("📊 Debt Service Coverage & Sensitivity Matrix", expanded=True):
+with st.expander(t.get('audit_expander', '📊 Debt Service Coverage & Sensitivity Matrix'), expanded=True):
     col_rev, col_metrics = st.columns([1, 1])
     
     with col_rev:
-        st.subheader("Live Stress Inputs")
+        st.subheader(t.get('stress_inputs', 'Live Stress Inputs'))
         
         # 1. Commodity / Revenue Price Shift Slider
         revenue_stress = st.slider(
-            "Revenue / Commodity Spot Price Stress (%)",
+            t.get('rev_stress_label', 'Revenue / Commodity Spot Price Stress (%)'),
             min_value=-30,
             max_value=30,
             value=0,
             step=5,
-            help="Simulates market price shifts (e.g., Gold spot adjustments relative to baseline)."
+            help=t.get('rev_stress_help', 'Simulates market price shifts (e.g., Gold spot adjustments relative to baseline).')
         )
         
         # 2. OPEX Cost Inflation Slider
         cost_stress = st.slider(
-            "OPEX Cost Inflation Stress (%)",
+            t.get('cost_stress_label', 'OPEX Cost Inflation Stress (%)'),
             min_value=-20,
             max_value=40,
             value=0,
             step=5,
-            help="Simulates operational cost overruns or supply chain inflation."
+            help=t.get('cost_stress_help', 'Simulates operational cost overruns or supply chain inflation.')
         )
 
     # --------------------------------------------------------------------------
     # DYNAMIC CALCULATIONS WIRED TO ACTIVE APP VARIABLES
     # --------------------------------------------------------------------------
-    # Net stress multiplier based on user sliders
     stress_multiplier = 1.0 + (revenue_stress / 100.0) - (cost_stress / 100.0)
 
-    # 1. Dynamically pull the active scenario's net cash flow stream
-    # Works for Junior Gold, Commercial Real Estate, Infrastructure, or Custom inputs
     if 'full_cash_stream' in locals():
         live_base_cfs = np.array(full_cash_stream, dtype=float)
     else:
-        # Fallback to cash_flows list if full_cash_stream isn't set
         live_base_cfs = np.array([-equity] + cash_flows, dtype=float)
 
-    # 2. Stress operational cash flows dynamically (leaving Year 0 outlay untouched)
     stressed_cfs = live_base_cfs.copy()
     if len(stressed_cfs) > 1:
         stressed_cfs[1:] = live_base_cfs[1:] * stress_multiplier
 
-    # 3. Recalculate Stressed NPV using the user's active hurdle rate
-    # Converts hurdle percentage (e.g., 8.0 or 15.0) to decimal format
     rate_decimal = (hurdle / 100.0) if hurdle > 1.0 else hurdle
     stressed_npv = sum([cf / ((1.0 + rate_decimal) ** t) for t, cf in enumerate(stressed_cfs)])
 
-    # 4. Calculate Dynamic Debt Service Coverage Ratio (DSCR)
-    # Compares average operational NOI against annual debt payments
     if 'annual_debt_service' in locals() and annual_debt_service > 0:
         avg_operational_noi = np.mean(stressed_cfs[1:]) if len(stressed_cfs) > 1 else 0
         live_dscr = avg_operational_noi / annual_debt_service
     else:
-        # Unleveraged / All-Equity scenario benchmark
         live_dscr = 1.45 * stress_multiplier
 
     with col_metrics:
-        st.subheader("Valuation Impact")
+        st.subheader(t.get('valuation_impact', 'Valuation Impact'))
         
         # Dynamic Stressed NPV Display
         st.metric(
-            label=f"Stressed NPV (@ {hurdle}% Hurdle)",
+            label=f"{t.get('stressed_npv_label', 'Stressed NPV')} (@ {hurdle}% Hurdle)",
             value=f"${stressed_npv:,.2f}",
-            delta=f"{revenue_stress - cost_stress}% Net Stress Shift",
+            delta=f"{revenue_stress - cost_stress}% {t.get('net_stress_shift', 'Net Stress Shift')}",
             delta_color="normal" if (revenue_stress - cost_stress) >= 0 else "inverse"
         )
         
         # Dynamic Covenant Protection Status
-        st.markdown("**Senior Debt Covenants Status:**")
+        st.markdown(t.get('covenant_status', '**Senior Debt Covenants Status:**'))
         if live_dscr >= 1.30:
-            st.success(f"✅ Peak DSCR Protection: **{live_dscr:.2f}x** (Exceeds 1.30x Banking Standard)")
+            st.success(t.get('dscr_success', '✅ Peak DSCR Protection: **{dscr:.2f}x** (Exceeds 1.30x Banking Standard)').format(dscr=live_dscr))
         elif live_dscr >= 1.0:
-            st.warning(f"⚠️ Debt Coverage Tight: **{live_dscr:.2f}x** (Breaches 1.30x covenant buffer)")
+            st.warning(t.get('dscr_warning', '⚠️ Debt Coverage Tight: **{dscr:.2f}x** (Breaches 1.30x covenant buffer)').format(dscr=live_dscr))
         else:
-            st.error(f"🚨 DSCR Deficit: **{live_dscr:.2f}x** (Requires Debt Service Reserve Fund drawdown)")
+            st.error(t.get('dscr_error', '🚨 DSCR Deficit: **{dscr:.2f}x** (Requires Debt Service Reserve Fund drawdown)').format(dscr=live_dscr))
 
-    st.info(
-        "💡 **Institutional Audit Note:** Senior lenders require minimum Debt Service Coverage Ratios (DSCR) of **1.25x–1.35x**. "
-        "This dynamic sensitivity module proves project solvency under adverse macro price movements."
-    )
+    st.info(t.get('audit_note', '💡 **Institutional Audit Note:** Senior lenders require minimum Debt Service Coverage Ratios (DSCR) of **1.25x–1.35x**.'))
 
