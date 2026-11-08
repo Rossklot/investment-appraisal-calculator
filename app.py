@@ -643,5 +643,4 @@ with col_metrics:
         "💡 **Institutional Audit Note:** Senior lenders require minimum Debt Service Coverage Ratios (DSCR) of **1.25x–1.35x**. "
         "This dynamic sensitivity module proves project solvency under adverse macro price movements."
     )
-=======
->>>>>>> 5ffd980af6623741bb06b34f44cc4f4fba020620
+
