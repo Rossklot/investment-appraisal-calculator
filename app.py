@@ -682,7 +682,7 @@ with st.expander(t.get('audit_expander', '📊 Debt Service Coverage & Sensitivi
     with col_metrics:
         st.subheader(t.get('valuation_impact', 'Valuation Impact'))
         
-        # Dynamic Stressed NPV Display
+        # Dynamic Stressed NPV Display with correct percentage formatting
         st.metric(
             label=f"{t.get('stressed_npv_label', 'Stressed NPV')} (@ {active_hurdle * 100 if active_hurdle <= 1.0 else active_hurdle:.1f}% Hurdle)",
             value=f"${stressed_npv:,.2f}",
