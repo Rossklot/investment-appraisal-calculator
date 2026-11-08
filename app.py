@@ -684,7 +684,7 @@ with st.expander(t.get('audit_expander', '📊 Debt Service Coverage & Sensitivi
         
         # Dynamic Stressed NPV Display
         st.metric(
-            label=f"{t.get('stressed_npv_label', 'Stressed NPV')} (@ {active_hurdle}% Hurdle)",
+            label=f"{t.get('stressed_npv_label', 'Stressed NPV')} (@ {active_hurdle * 100 if active_hurdle <= 1.0 else active_hurdle:.1f}% Hurdle)",
             value=f"${stressed_npv:,.2f}",
             delta=f"{revenue_stress - cost_stress}% {t.get('net_stress_shift', 'Net Stress Shift')}",
             delta_color="normal" if (revenue_stress - cost_stress) >= 0 else "inverse"
