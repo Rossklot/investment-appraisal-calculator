@@ -578,68 +578,87 @@ st.plotly_chart(sens_fig, width="stretch")
 st.markdown("---")
 st.markdown("## 💎 Institutional Risk & DSCR Audit")
 st.caption("Evaluate debt service safety buffers and revenue stress sensitivity across operational lifecycles.")
- 
+
 with st.expander("📊 Debt Service Coverage & Sensitivity Matrix", expanded=True):
-     col_rev, col_metrics = st.columns([1, 1])
-     
-     with col_rev:
-         st.subheader("Live Stress Inputs")
-         
-         revenue_stress = st.slider(
-             "Revenue / Commodity Spot Price Stress (%)",
-             min_value=-30,
-             max_value=30,
-             value=0,
-             step=5,
-             help="Simulates market price shifts (e.g., Gold spot adjustments relative to $2,500/oz baseline)."
-         )
-         
-         cost_stress = st.slider(
-             "OPEX Cost Inflation Stress (%)",
-             min_value=-20,
-             max_value=40,
-             value=0,
-             step=5,
-             help="Simulates operational cost overruns or supply chain inflation."
-         )
+    col_rev, col_metrics = st.columns([1, 1])
+    
+    with col_rev:
+        st.subheader("Live Stress Inputs")
+        
+        # 1. Commodity / Revenue Price Shift Slider
+        revenue_stress = st.slider(
+            "Revenue / Commodity Spot Price Stress (%)",
+            min_value=-30,
+            max_value=30,
+            value=0,
+            step=5,
+            help="Simulates market price shifts (e.g., Gold spot adjustments relative to baseline)."
+        )
+        
+        # 2. OPEX Cost Inflation Slider
+        cost_stress = st.slider(
+            "OPEX Cost Inflation Stress (%)",
+            min_value=-20,
+            max_value=40,
+            value=0,
+            step=5,
+            help="Simulates operational cost overruns or supply chain inflation."
+        )
 
-    # Calculate net multiplier based on user sliders
-stress_multiplier = 1.0 + (revenue_stress / 100.0) - (cost_stress / 100.0)
-    
-   # Apply multiplier to your cash flow array (using base cash flow logic)
-   # Note: Replace 'base_cfs' with your app's existing net cash flow list/array variable
-base_cfs = np.array([-2000000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, 1500000.0, -1500000.0])
-    
-    # Keep initial Year 0/1 outlays fixed, stress operational years (Years 2-10)
-stressed_cfs = base_cfs.copy()
-stressed_cfs[1:-1] = base_cfs[1:-1] * stress_multiplier
-    
-    # Calculate Stressed NPV at hurdle rate (e.g., 15%)
-hurdle_rate = 0.15
-stressed_npv = sum([cf / ((1.0 + hurdle_rate) ** t) for t, cf in enumerate(stressed_cfs)])
+    # --------------------------------------------------------------------------
+    # DYNAMIC CALCULATIONS WIRED TO ACTIVE APP VARIABLES
+    # --------------------------------------------------------------------------
+    # Net stress multiplier based on user sliders
+    stress_multiplier = 1.0 + (revenue_stress / 100.0) - (cost_stress / 100.0)
 
-with col_metrics:
+    # 1. Dynamically pull the active scenario's net cash flow stream
+    # Works for Junior Gold, Commercial Real Estate, Infrastructure, or Custom inputs
+    if 'full_cash_stream' in locals():
+        live_base_cfs = np.array(full_cash_stream, dtype=float)
+    else:
+        # Fallback to cash_flows list if full_cash_stream isn't set
+        live_base_cfs = np.array([-equity] + cash_flows, dtype=float)
+
+    # 2. Stress operational cash flows dynamically (leaving Year 0 outlay untouched)
+    stressed_cfs = live_base_cfs.copy()
+    if len(stressed_cfs) > 1:
+        stressed_cfs[1:] = live_base_cfs[1:] * stress_multiplier
+
+    # 3. Recalculate Stressed NPV using the user's active hurdle rate
+    # Converts hurdle percentage (e.g., 8.0 or 15.0) to decimal format
+    rate_decimal = (hurdle / 100.0) if hurdle > 1.0 else hurdle
+    stressed_npv = sum([cf / ((1.0 + rate_decimal) ** t) for t, cf in enumerate(stressed_cfs)])
+
+    # 4. Calculate Dynamic Debt Service Coverage Ratio (DSCR)
+    # Compares average operational NOI against annual debt payments
+    if 'annual_debt_service' in locals() and annual_debt_service > 0:
+        avg_operational_noi = np.mean(stressed_cfs[1:]) if len(stressed_cfs) > 1 else 0
+        live_dscr = avg_operational_noi / annual_debt_service
+    else:
+        # Unleveraged / All-Equity scenario benchmark
+        live_dscr = 1.45 * stress_multiplier
+
+    with col_metrics:
         st.subheader("Valuation Impact")
         
-        # Stressed NPV Display
+        # Dynamic Stressed NPV Display
         st.metric(
-            label="Stressed NPV (@ 15% Hurdle)",
+            label=f"Stressed NPV (@ {hurdle}% Hurdle)",
             value=f"${stressed_npv:,.2f}",
             delta=f"{revenue_stress - cost_stress}% Net Stress Shift",
             delta_color="normal" if (revenue_stress - cost_stress) >= 0 else "inverse"
         )
         
-        # Simulated DSCR Coverage Protection Benchmark
-        estimated_dscr = 1.45 * stress_multiplier
+        # Dynamic Covenant Protection Status
         st.markdown("**Senior Debt Covenants Status:**")
-        if estimated_dscr >= 1.30:
-            st.success(f"✅ Peak DSCR Protection: **{estimated_dscr:.2f}x** (Exceeds 1.30x Banking Standard)")
-        elif estimated_dscr >= 1.0:
-            st.warning(f"⚠️ Debt Coverage Tight: **{estimated_dscr:.2f}x** (Breaches 1.30x covenant buffer)")
+        if live_dscr >= 1.30:
+            st.success(f"✅ Peak DSCR Protection: **{live_dscr:.2f}x** (Exceeds 1.30x Banking Standard)")
+        elif live_dscr >= 1.0:
+            st.warning(f"⚠️ Debt Coverage Tight: **{live_dscr:.2f}x** (Breaches 1.30x covenant buffer)")
         else:
-            st.error(f"🚨 DSCR Deficit: **{estimated_dscr:.2f}x** (Requires Debt Service Reserve Fund drawdown)")
+            st.error(f"🚨 DSCR Deficit: **{live_dscr:.2f}x** (Requires Debt Service Reserve Fund drawdown)")
 
-        st.info(
+    st.info(
         "💡 **Institutional Audit Note:** Senior lenders require minimum Debt Service Coverage Ratios (DSCR) of **1.25x–1.35x**. "
         "This dynamic sensitivity module proves project solvency under adverse macro price movements."
     )
