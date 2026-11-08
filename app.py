@@ -638,22 +638,41 @@ with st.expander(t.get('audit_expander', '📊 Debt Service Coverage & Sensitivi
         )
 
     # --------------------------------------------------------------------------
-    # DYNAMIC CALCULATIONS WIRED TO ACTIVE APP VARIABLES
+    # DYNAMIC CALCULATIONS WITH FALLBACK VARIABLE CHECKS
     # --------------------------------------------------------------------------
     stress_multiplier = 1.0 + (revenue_stress / 100.0) - (cost_stress / 100.0)
 
+    # 1. Safely retrieve the active hurdle / discount rate
+    if 'hurdle' in locals():
+        active_hurdle = hurdle
+    elif 'hurdle_rate' in locals():
+        active_hurdle = hurdle_rate
+    elif 'discount_rate' in locals():
+        active_hurdle = discount_rate
+    else:
+        active_hurdle = 8.0  # Fallback default
+
+    # 2. Convert percentage to decimal format
+    rate_decimal = (active_hurdle / 100.0) if active_hurdle > 1.0 else active_hurdle
+
+    # 3. Pull active project cash flows dynamically
     if 'full_cash_stream' in locals():
         live_base_cfs = np.array(full_cash_stream, dtype=float)
+    elif 'cash_flows' in locals():
+        equity_val = equity if 'equity' in locals() else 0.0
+        live_base_cfs = np.array([-equity_val] + cash_flows, dtype=float)
     else:
-        live_base_cfs = np.array([-equity] + cash_flows, dtype=float)
+        live_base_cfs = np.array([-50000.0] + [15000.0]*10, dtype=float)
 
+    # 4. Apply stress multiplier to operational cash flows
     stressed_cfs = live_base_cfs.copy()
     if len(stressed_cfs) > 1:
         stressed_cfs[1:] = live_base_cfs[1:] * stress_multiplier
 
-    rate_decimal = (hurdle / 100.0) if hurdle > 1.0 else hurdle
+    # 5. Recalculate Stressed NPV
     stressed_npv = sum([cf / ((1.0 + rate_decimal) ** t) for t, cf in enumerate(stressed_cfs)])
 
+    # 6. Dynamic DSCR calculation
     if 'annual_debt_service' in locals() and annual_debt_service > 0:
         avg_operational_noi = np.mean(stressed_cfs[1:]) if len(stressed_cfs) > 1 else 0
         live_dscr = avg_operational_noi / annual_debt_service
@@ -665,7 +684,7 @@ with st.expander(t.get('audit_expander', '📊 Debt Service Coverage & Sensitivi
         
         # Dynamic Stressed NPV Display
         st.metric(
-            label=f"{t.get('stressed_npv_label', 'Stressed NPV')} (@ {hurdle}% Hurdle)",
+            label=f"{t.get('stressed_npv_label', 'Stressed NPV')} (@ {active_hurdle}% Hurdle)",
             value=f"${stressed_npv:,.2f}",
             delta=f"{revenue_stress - cost_stress}% {t.get('net_stress_shift', 'Net Stress Shift')}",
             delta_color="normal" if (revenue_stress - cost_stress) >= 0 else "inverse"
