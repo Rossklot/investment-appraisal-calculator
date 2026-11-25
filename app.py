@@ -16,9 +16,18 @@ from decision_intelligence import (
     run_monte_carlo,
     run_tornado_analysis,
 )
+from scenario_comparison import (
+    generate_three_case_matrix,
+    make_snapshot_record,
+    plot_scenario_comparison,
+)
 from mining_templates import (
     MINING_ARCHETYPES,
     generate_mining_schedule,
+)
+from deal_structuring import (
+    apply_royalty_and_tax_waterfall,
+    build_grace_period_debt_schedule,
 )
 
 # Step 1: Translations Dictionary
@@ -464,6 +473,36 @@ hurdle_rate = (
     / 100
 )
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("🏛️ Royalty, Tax & Debt Grace")
+
+nsr_royalty_pct = st.sidebar.slider(
+    "NSR Royalty (%)",
+    min_value=0.0,
+    max_value=10.0,
+    value=0.0,
+    step=0.25,
+    help="Net Smelter Return (NSR) top-line royalty deducted from gross revenue.",
+)
+
+corporate_tax_rate_pct = st.sidebar.slider(
+    "Corporate Income Tax Rate (%)",
+    min_value=0.0,
+    max_value=45.0,
+    value=26.5,
+    step=0.5,
+    help="Applied to positive taxable income after straight-line CapEx depreciation & interest shield.",
+)
+
+debt_grace_years = st.sidebar.number_input(
+    "Debt Principal Grace Period (Years)",
+    min_value=0,
+    max_value=max(0, int(loan_term) - 1) if loan_term > 1 else 0,
+    value=0,
+    step=1,
+    help="Interest-only construction/ramp-up period before principal amortization starts.",
+)
+
 # --- Advanced Financing & Compounding Setup ---
 with st.sidebar.expander(t["advanced_setup"]):
     compounding_freq = st.selectbox(
@@ -744,10 +783,40 @@ st.sidebar.markdown(t["feedback_text"])
 
 # --- CALCULATE OUTLAYS & CASH FLOW STREAMS (RUNS FOR BOTH MODES) ---
 total_initial_outlay = initial_equity + (loan_amount * discount_fee_pct)
-debt_schedule = [
-    annual_debt_service if yr <= int(loan_term) else 0.0
-    for yr in range(1, len(cash_flows) + 1)
-]
+# --- PRIORITY 3B: APPLY DEBT GRACE PERIOD, NSR ROYALTY & AFTER-TAX WATERFALL ---
+grace_df = pd.DataFrame()
+if debt_grace_years > 0 and loan_amount > 0:
+    grace_df = build_grace_period_debt_schedule(
+        loan_amount=loan_amount,
+        annual_interest_rate=interest_rate,
+        loan_term_years=loan_term,
+        grace_period_years=debt_grace_years,
+        discount_fee_pct=discount_fee_pct,
+    )
+
+if not grace_df.empty:
+    grace_payments = grace_df["Annual Payment"].tolist()
+    debt_schedule = [
+        grace_payments[yr - 1] if yr <= len(grace_payments) else 0.0
+        for yr in range(1, len(cash_flows) + 1)
+    ]
+else:
+    debt_schedule = [
+        annual_debt_service if yr <= int(loan_term) else 0.0
+        for yr in range(1, len(cash_flows) + 1)
+    ]
+
+pre_tax_cash_flows = list(cash_flows)
+cash_flows, tax_waterfall_df = apply_royalty_and_tax_waterfall(
+    pre_tax_cash_flows=pre_tax_cash_flows,
+    total_initial_outlay=total_initial_outlay,
+    nsr_royalty_pct=nsr_royalty_pct,
+    corporate_tax_rate_pct=corporate_tax_rate_pct,
+    use_mining_template=use_mining_template,
+    mining_df=edited_mining_df if use_mining_template else None,
+    debt_schedule=grace_df if not grace_df.empty else None,
+    tax_shield_interest=True,
+)
 net_cash_flows = [cf - ds for cf, ds in zip(cash_flows, debt_schedule)]
 full_cash_stream = [-total_initial_outlay] + net_cash_flows
 
@@ -794,6 +863,19 @@ fig = px.bar(
 )
 st.plotly_chart(fig, use_container_width=True)
 st.dataframe(df, use_container_width=True)
+if not tax_waterfall_df.empty and (nsr_royalty_pct > 0 or corporate_tax_rate_pct > 0):
+    with st.expander("🏛️ View NSR Royalty & After-Tax Cash Flow Waterfall", expanded=False):
+        fmt_waterfall = tax_waterfall_df.copy()
+        for col in [
+            "Pre-Tax / Pre-Royalty CF",
+            "NSR Royalty",
+            "Depreciation Shield",
+            "Taxable Income",
+            "Corporate Tax",
+            "After-Tax Net CF",
+        ]:
+            fmt_waterfall[col] = fmt_waterfall[col].map(lambda x: f"{currency_symbol}{x:,.0f}")
+        st.dataframe(fmt_waterfall, use_container_width=True, hide_index=True)
 
 # --- SUMMARY DATAFRAME FOR CSV & PDF DOWNLOAD ---
 df_summary = pd.DataFrame(
@@ -1131,3 +1213,167 @@ with tab_mc:
     hist_fig.add_vline(x=0, line_dash="dash", line_color="red", annotation_text="Break-Even ($0)")
     hist_fig.add_vline(x=mc_summary["npv_p50"], line_dash="dot", line_color="green", annotation_text="P50")
     st.plotly_chart(hist_fig, use_container_width=True)
+
+    # ==============================================================================
+# PRIORITY 3A: SIDE-BY-SIDE SCENARIO & DEAL COMPARISON
+# ==============================================================================
+st.markdown("---")
+st.subheader("📊 Side-by-Side Scenario & Deal Comparison")
+st.caption(
+    "Compare Downside Stress, Base Case, and Upside Case automatically—or snapshot "
+    "alternative debt/template configurations to benchmark deals side by side."
+)
+
+if "deal_snapshots" not in st.session_state:
+    st.session_state.deal_snapshots = []
+
+comp_tab1, comp_tab2 = st.tabs(
+    ["⚖️ Downside / Base / Upside Matrix", "📌 Saved Deal Snapshots"]
+)
+
+with comp_tab1:
+    sc1, sc2, sc3 = st.columns(3)
+    with sc1:
+        down_price_pct = st.slider(
+            "Downside Price / Inflow Shock (%)",
+            min_value=-40,
+            max_value=-5,
+            value=-15,
+            step=5,
+            key="p3_down_price",
+        )
+    with sc2:
+        down_opex_pct = st.slider(
+            "Downside OpEx / AISC Shock (%)",
+            min_value=0,
+            max_value=35,
+            value=10,
+            step=5,
+            key="p3_down_opex",
+        )
+    with sc3:
+        up_price_pct = st.slider(
+            "Upside Price / Inflow Shock (%)",
+            min_value=5,
+            max_value=40,
+            value=15,
+            step=5,
+            key="p3_up_price",
+        )
+
+    three_case_df = generate_three_case_matrix(
+        use_mining_template=use_mining_template,
+        base_cash_flows=cash_flows,
+        total_initial_outlay=total_initial_outlay,
+        hurdle_rate=hurdle_rate,
+        debt_schedule=debt_schedule,
+        loan_amount=loan_amount,
+        interest_rate=interest_rate,
+        mining_df=edited_mining_df if use_mining_template else None,
+        downside_price_shock=down_price_pct / 100.0,
+        downside_opex_shock=down_opex_pct / 100.0,
+        downside_capex_shock=0.15,
+        upside_price_shock=up_price_pct / 100.0,
+        upside_opex_shock=-0.05,
+        upside_capex_shock=-0.05,
+    )
+
+    display_three_df = three_case_df.copy()
+    display_three_df["Initial Outlay"] = display_three_df["Initial Outlay"].map(
+        lambda x: f"{currency_symbol}{x:,.0f}"
+    )
+    display_three_df["Cumulative Net CF"] = display_three_df["Cumulative Net CF"].map(
+        lambda x: f"{currency_symbol}{x:,.0f}"
+    )
+    display_three_df["NPV"] = display_three_df["NPV"].map(
+        lambda x: f"{currency_symbol}{x:,.0f}"
+    )
+    display_three_df["IRR (%)"] = display_three_df["IRR (%)"].map(
+        lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
+    )
+    display_three_df["Profitability Index"] = display_three_df["Profitability Index"].map(
+        lambda x: f"{x:.2f}x" if pd.notna(x) else "N/A"
+    )
+    display_three_df["Min DSCR"] = display_three_df["Min DSCR"].map(
+        lambda x: f"{x:.2f}x" if pd.notna(x) else "N/A"
+    )
+    display_three_df["LLCR"] = display_three_df["LLCR"].map(
+        lambda x: f"{x:.2f}x" if pd.notna(x) else "N/A"
+    )
+    display_three_df["Payback (Yrs)"] = display_three_df["Payback (Yrs)"].map(
+        lambda x: f"{x:.1f} yrs" if pd.notna(x) else "Unrecovered"
+    )
+
+    st.dataframe(display_three_df, use_container_width=True, hide_index=True)
+    st.plotly_chart(
+        plot_scenario_comparison(three_case_df, currency_symbol=currency_symbol),
+        use_container_width=True,
+    )
+
+with comp_tab2:
+    snap_col1, snap_col2, snap_col3 = st.columns([2, 3, 1.5])
+    with snap_col1:
+        snap_name = st.text_input(
+            "Snapshot Label",
+            value=f"Option {len(st.session_state.deal_snapshots) + 1}",
+            key="p3_snap_name",
+        )
+    with snap_col2:
+        snap_note = st.text_input(
+            "Deal Structure / Financing Note",
+            placeholder="e.g., 60% Senior Debt @ 7.5% vs All-Equity",
+            key="p3_snap_note",
+        )
+    with snap_col3:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("📌 Save Snapshot", use_container_width=True, key="p3_save_snap"):
+            rec = make_snapshot_record(
+                snapshot_name=snap_name,
+                notes=snap_note,
+                cash_flows=cash_flows,
+                total_initial_outlay=total_initial_outlay,
+                hurdle_rate=hurdle_rate,
+                debt_schedule=debt_schedule,
+                loan_amount=loan_amount,
+                interest_rate=interest_rate,
+            )
+            st.session_state.deal_snapshots.append(rec)
+            st.success(f"Saved '{snap_name}' to comparison deck.")
+
+    if st.session_state.deal_snapshots:
+        snap_df = pd.DataFrame(st.session_state.deal_snapshots)
+        display_snap_df = snap_df.copy()
+        for col in ["Initial Outlay", "Cumulative Net CF", "NPV"]:
+            display_snap_df[col] = display_snap_df[col].map(
+                lambda x: f"{currency_symbol}{x:,.0f}"
+            )
+        display_snap_df["IRR (%)"] = display_snap_df["IRR (%)"].map(
+            lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
+        )
+        display_snap_df["Profitability Index"] = display_snap_df["Profitability Index"].map(
+            lambda x: f"{x:.2f}x" if pd.notna(x) else "N/A"
+        )
+        display_snap_df["Min DSCR"] = display_snap_df["Min DSCR"].map(
+            lambda x: f"{x:.2f}x" if pd.notna(x) else "N/A"
+        )
+        display_snap_df["LLCR"] = display_snap_df["LLCR"].map(
+            lambda x: f"{x:.2f}x" if pd.notna(x) else "N/A"
+        )
+        display_snap_df["Payback (Yrs)"] = display_snap_df["Payback (Yrs)"].map(
+            lambda x: f"{x:.1f} yrs" if pd.notna(x) else "Unrecovered"
+        )
+
+        st.dataframe(display_snap_df, use_container_width=True, hide_index=True)
+        if len(snap_df) >= 2:
+            st.plotly_chart(
+                plot_scenario_comparison(snap_df, currency_symbol=currency_symbol),
+                use_container_width=True,
+            )
+        if st.button("🗑️ Clear All Snapshots", key="p3_clear_snaps"):
+            st.session_state.deal_snapshots = []
+            st.rerun()
+    else:
+        st.info(
+            "No custom snapshots saved yet. Configure any template or debt structure in the sidebar, "
+            "label it above, and click **📌 Save Snapshot** to compare multiple deals side by side."
+        )
