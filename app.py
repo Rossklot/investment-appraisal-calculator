@@ -5,11 +5,17 @@ import numpy_financial as npf
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import plotly.graph_objects as go
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-
+from decision_intelligence import (
+    compute_robust_irr,
+    evaluate_bankability,
+    run_monte_carlo,
+    run_tornado_analysis,
+)
 from mining_templates import (
     MINING_ARCHETYPES,
     generate_mining_schedule,
@@ -754,7 +760,7 @@ if eval_mode == t["mode_lease"]:
     irr = None
 else:
     npv = float(npf.npv(hurdle_rate, full_cash_stream))
-    raw_irr = npf.irr(full_cash_stream)
+    raw_irr = compute_robust_irr(full_cash_stream, hurdle_rate)
     irr = float(raw_irr) if (raw_irr is not None and not np.isnan(raw_irr)) else None
 
 # Render Metric Cards with Dynamic Labels
@@ -945,3 +951,183 @@ with st.expander(t.get("audit_expander", "📊 Debt Service Coverage & Sensitivi
             "💡 **Institutional Audit Note:** Senior lenders require minimum Debt Service Coverage Ratios (DSCR) of **1.25x–1.35x**.",
         )
     )
+
+    # ==============================================================================
+# 🧠 PRIORITY 2: DECISION INTELLIGENCE (BANKABILITY, TORNADO & MONTE CARLO)
+# ==============================================================================
+st.markdown("---")
+st.markdown("## 🧠 Decision Intelligence & Credit Committee Screening")
+st.caption("Automated senior-debt bankability audit, ranked Tornado sensitivity, and stochastic Monte Carlo risk modeling.")
+
+# 1. Automated Bankability / Covenant Flag
+bankability = evaluate_bankability(
+    npv=npv,
+    irr=irr,
+    hurdle_rate=hurdle_rate,
+    loan_amount=loan_amount,
+    total_initial_outlay=total_initial_outlay,
+    cash_flows=cash_flows,
+    debt_schedule=debt_schedule,
+    interest_rate=interest_rate,
+)
+
+b_col1, b_col2, b_col3, b_col4 = st.columns([1.4, 1, 1, 1])
+with b_col1:
+    if bankability["badge"] == "success":
+        st.success(f"### 🏦 Status: {bankability['status']}")
+    elif bankability["badge"] == "warning":
+        st.warning(f"### ⚠️ Status: {bankability['status']}")
+    else:
+        st.error(f"### 🚨 Status: {bankability['status']}")
+
+b_col2.metric(
+    "Minimum DSCR",
+    f"{bankability['min_dscr']:.2f}x",
+    help="Senior lenders typically require >= 1.25x–1.35x",
+)
+b_col3.metric(
+    "LLCR",
+    f"{bankability['llcr']:.2f}x" if not np.isnan(bankability["llcr"]) else "N/A",
+    help="Loan Life Coverage Ratio = PV(CFADS over loan tenor) / Initial Debt",
+)
+b_col4.metric(
+    "Equity Payback",
+    f"{bankability['payback_year']:.1f} yrs" if bankability["payback_year"] is not None else "Unrecovered",
+)
+
+for r in bankability["reasons_fail"]:
+    st.markdown(f"- ❌ {r}")
+for r in bankability["reasons_warn"]:
+    st.markdown(f"- ⚠️ {r}")
+for r in bankability["reasons_pass"]:
+    st.markdown(f"- ✅ {r}")
+
+# 2. Tabs for Tornado Sensitivity & Monte Carlo Simulation
+tab_tornado, tab_mc = st.tabs(
+    ["🌪️ Tornado Driver Ranking", "🎲 Monte Carlo Simulation (500–1,000 Draws)"]
+)
+
+with tab_tornado:
+    shock_pct = (
+        st.slider("Parameter Perturbation Shock (±%)", min_value=5, max_value=30, value=15, step=5)
+        / 100.0
+    )
+    sidebar_total_cap = max(1.0, loan_amount + initial_equity)
+    debt_ratio_val = loan_amount / sidebar_total_cap
+
+    tornado_df = run_tornado_analysis(
+        use_mining_template=use_mining_template,
+        base_npv=npv,
+        base_irr=irr,
+        hurdle_rate=hurdle_rate,
+        cash_flows=cash_flows,
+        total_initial_outlay=total_initial_outlay,
+        debt_schedule=debt_schedule,
+        mining_df=edited_mining_df if use_mining_template else None,
+        base_capex=float(template_capex) if use_mining_template else total_initial_outlay,
+        debt_ratio=debt_ratio_val,
+        discount_fee_pct=discount_fee_pct,
+        monthly_interest_rate=monthly_interest_rate,
+        total_months=total_months,
+        loan_term=loan_term,
+        shock_pct=shock_pct,
+    )
+
+    top_drivers = tornado_df.head(5)
+    st.markdown("**Top Value Drivers (Ranked by NPV & IRR Swing):**")
+    for idx, row in top_drivers.iterrows():
+        st.markdown(
+            f"**#{idx + 1} {row['Driver']}** — NPV Swing: **{currency_symbol}{row['NPV_Swing']:,.0f}** "
+            f"| IRR Swing: **{row['IRR_Swing_Pct']:.1f} percentage pts**"
+        )
+
+    tornado_plot_df = top_drivers.iloc[::-1]
+    t_fig = go.Figure()
+    t_fig.add_trace(
+        go.Bar(
+            y=tornado_plot_df["Driver"],
+            x=tornado_plot_df["Downside_Delta"],
+            name="Downside Impact",
+            orientation="h",
+            marker_color="#EF4444",
+        )
+    )
+    t_fig.add_trace(
+        go.Bar(
+            y=tornado_plot_df["Driver"],
+            x=tornado_plot_df["Upside_Delta"],
+            name="Upside Impact",
+            orientation="h",
+            marker_color="#10B981",
+        )
+    )
+    t_fig.update_layout(
+        title=f"Tornado Chart: NPV Delta vs. Base ({currency_symbol}{npv:,.0f})",
+        barmode="overlay",
+        xaxis_title=f"NPV Change ({currency_symbol})",
+        height=360,
+    )
+    st.plotly_chart(t_fig, use_container_width=True)
+
+with tab_mc:
+    mc_c1, mc_c2, mc_c3, mc_c4, mc_c5 = st.columns(5)
+    n_sims = mc_c1.select_slider("Simulations", options=[500, 750, 1000], value=1000)
+    price_vol = mc_c2.slider("Price Volatility (±σ %)", 5, 35, 15, 5) / 100.0
+    opex_vol = mc_c3.slider("OPEX Volatility (±σ %)", 5, 30, 10, 5) / 100.0
+    grade_vol = mc_c4.slider("Grade Volatility (±σ %)", 2, 25, 8, 2) / 100.0
+    rec_vol = mc_c5.slider("Recovery Vol (±σ %)", 1, 15, 4, 1) / 100.0
+
+    dist_df, mc_summary = run_monte_carlo(
+        n_sims=n_sims,
+        use_mining_template=use_mining_template,
+        hurdle_rate=hurdle_rate,
+        total_initial_outlay=total_initial_outlay,
+        debt_schedule=debt_schedule,
+        cash_flows=cash_flows,
+        mining_df=edited_mining_df if use_mining_template else None,
+        price_vol=price_vol,
+        opex_vol=opex_vol,
+        grade_vol=grade_vol,
+        rec_vol=rec_vol,
+        covenant_threshold=1.30,
+    )
+
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("P10 NPV (Downside)", f"{currency_symbol}{mc_summary['npv_p10']:,.0f}")
+    k2.metric("P50 NPV (Median)", f"{currency_symbol}{mc_summary['npv_p50']:,.0f}")
+    k3.metric("P90 NPV (Upside)", f"{currency_symbol}{mc_summary['npv_p90']:,.0f}")
+    k4.metric("Prob(NPV > 0)", f"{mc_summary['prob_pos_npv']:.1f}%")
+    k5.metric("Prob(DSCR < 1.30x)", f"{mc_summary['prob_breach']:.1f}%")
+
+    pct_table = pd.DataFrame(
+        {
+            "Metric": ["NPV", "IRR (%)", "Min DSCR (x)"],
+            "P10 (Conservative)": [
+                f"{currency_symbol}{mc_summary['npv_p10']:,.0f}",
+                f"{mc_summary['irr_p10']:.1f}%",
+                f"{mc_summary['dscr_p10']:.2f}x",
+            ],
+            "P50 (Base Median)": [
+                f"{currency_symbol}{mc_summary['npv_p50']:,.0f}",
+                f"{mc_summary['irr_p50']:.1f}%",
+                f"{mc_summary['dscr_p50']:.2f}x",
+            ],
+            "P90 (Optimistic)": [
+                f"{currency_symbol}{mc_summary['npv_p90']:,.0f}",
+                f"{mc_summary['irr_p90']:.1f}%",
+                f"{mc_summary['dscr_p90']:.2f}x",
+            ],
+        }
+    )
+    st.dataframe(pct_table, use_container_width=True, hide_index=True)
+
+    hist_fig = px.histogram(
+        dist_df,
+        x="NPV",
+        nbins=40,
+        title=f"Monte Carlo NPV Distribution ({n_sims} Draws)",
+        color_discrete_sequence=["#2563EB"],
+    )
+    hist_fig.add_vline(x=0, line_dash="dash", line_color="red", annotation_text="Break-Even ($0)")
+    hist_fig.add_vline(x=mc_summary["npv_p50"], line_dash="dot", line_color="green", annotation_text="P50")
+    st.plotly_chart(hist_fig, use_container_width=True)
