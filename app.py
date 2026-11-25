@@ -29,6 +29,7 @@ from deal_structuring import (
     apply_royalty_and_tax_waterfall,
     build_grace_period_debt_schedule,
 )
+from excel_deal_book import build_excel_deal_book
 
 # Step 1: Translations Dictionary
 TRANSLATIONS = {
@@ -926,7 +927,56 @@ with col2:
         mime="text/csv",
         key="csv_download_btn",
     )
+# --- PRIORITY 3C: MULTI-SHEET EXCEL DEAL BOOK (.XLSX) EXPORT ---
+excel_summary_rows = [
+    ("Valuation", "Initial Capital Outlay", f"{currency_symbol}{total_initial_outlay:,.2f}"),
+    ("Valuation", "Net Present Value (NPV)", f"{currency_symbol}{npv:,.2f}"),
+    ("Valuation", "Internal Rate of Return (IRR)", f"{irr * 100:.2f}%" if not np.isnan(irr) else "N/A"),
+    ("Valuation", "Discount / Hurdle Rate", f"{hurdle_rate * 100:.2f}%"),
+    ("Capital & Structuring", "Debt Financing Amount", f"{currency_symbol}{loan_amount:,.2f}"),
+    ("Capital & Structuring", "Interest Rate", f"{interest_rate * 100:.2f}%"),
+    ("Capital & Structuring", "Loan Term (Years)", int(loan_term)),
+    ("Capital & Structuring", "Debt Grace Period (Years)", int(debt_grace_years)),
+    ("Capital & Structuring", "NSR Royalty (%)", f"{nsr_royalty_pct:.2f}%"),
+    ("Capital & Structuring", "Corporate Income Tax Rate (%)", f"{corporate_tax_rate_pct:.2f}%"),
+]
 
+# Safely pull Bankability, Tornado, Scenario & Snapshot tables if defined in current run
+_bank_res = locals().get("bankability_result") or locals().get("bank_metrics")
+if isinstance(_bank_res, dict):
+    if "min_dscr" in _bank_res and not np.isnan(_bank_res["min_dscr"]):
+        excel_summary_rows.append(("Bankability", "Minimum DSCR", f"{_bank_res['min_dscr']:.2f}x"))
+    if "llcr" in _bank_res and not np.isnan(_bank_res["llcr"]):
+        excel_summary_rows.append(("Bankability", "Loan Life Coverage Ratio (LLCR)", f"{_bank_res['llcr']:.2f}x"))
+    if "status" in _bank_res:
+        excel_summary_rows.append(("Bankability", "Covenant Assessment", str(_bank_res["status"])))
+
+_tornado_export = locals().get("tornado_df")
+_scenario_export = locals().get("three_case_df") or locals().get("scenario_df")
+_snapshots_export = (
+    pd.DataFrame(st.session_state["deal_snapshots"])
+    if "deal_snapshots" in st.session_state and st.session_state["deal_snapshots"]
+    else None
+)
+
+excel_bytes = build_excel_deal_book(
+    org_name=org_name if "org_name" in locals() else "Investment Appraisal",
+    currency_symbol=currency_symbol,
+    summary_metrics=excel_summary_rows,
+    cash_flow_df=df if "df" in locals() else pd.DataFrame(),
+    tax_waterfall_df=tax_waterfall_df if "tax_waterfall_df" in locals() else None,
+    tornado_df=_tornado_export,
+    scenario_df=_scenario_export,
+    snapshots_df=_snapshots_export,
+)
+
+st.download_button(
+    label="📊 Download Multi-Sheet Excel Deal Book (.xlsx)",
+    data=excel_bytes,
+    file_name="Investment_Appraisal_Deal_Book.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    use_container_width=True,
+)
 # --- NPV SENSITIVITY CHART ---
 st.markdown("---")
 st.subheader(t["sensitivity_header"])
