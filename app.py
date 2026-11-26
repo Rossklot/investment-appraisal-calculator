@@ -204,8 +204,253 @@ def get_qp_float(qp_dict, param_name, fallback):
     except (ValueError, TypeError):
         return float(fallback)
 
+def _append_institutional_reportlab_sections(
+    story,
+    styles,
+    currency_symbol="$",
+    lang="English",
+    bankability_result=None,
+    nsr_royalty_pct=0.0,
+    corporate_tax_rate_pct=0.0,
+    debt_grace_years=0,
+    tax_waterfall_df=None,
+    tornado_df=None,
+    mc_stats=None,
+    scenario_df=None,
+):
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
-# --- PDF REPORT GENERATOR FUNCTION ---
+    is_fr = str(lang).lower().startswith("fr")
+
+    banner_style = ParagraphStyle(
+        "InstitutionalBanner",
+        parent=styles["Heading2"],
+        fontSize=11,
+        textColor=colors.HexColor("#1E3A8A"),
+        spaceBefore=12,
+        spaceAfter=6,
+    )
+    note_style = ParagraphStyle(
+        "InstitutionalNote",
+        parent=styles["Normal"],
+        fontSize=9,
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=6,
+    )
+
+    def _styled_table(data, col_widths):
+        tbl = Table(data, colWidths=col_widths, repeatRows=1)
+        tbl.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E3A8A")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                    ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                    ("ALIGN", (0, 1), (0, -1), "LEFT"),
+                    ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+                    ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CBD5E1")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        return tbl
+
+    if isinstance(bankability_result, dict) and bankability_result:
+        story.append(
+            Paragraph(
+                "1. Audit de bancabilité et clauses restrictives" if is_fr else "1. Bankability & Debt Covenant Audit",
+                banner_style,
+            )
+        )
+        min_dscr = bankability_result.get("min_dscr", float("nan"))
+        avg_dscr = next((bankability_result[k] for k in ("avg_dscr", "mean_dscr", "average_dscr") if k in bankability_result), float("nan"))
+        llcr = bankability_result.get("llcr", float("nan"))
+        payback = next((bankability_result[k] for k in ("equity_payback", "payback_years", "payback_period", "payback") if k in bankability_result), float("nan"))
+        raw_status = str(bankability_result.get("status", "N/A"))
+        if is_fr:
+            status_map = {
+                "Likely bankable": "Probablement bancable",
+                "Borderline / Conditional": "Limite / Conditionnel",
+                "Unbankable as structured": "Non bancable tel que structuré",
+            }
+            status = status_map.get(raw_status, raw_status)
+            data = [
+                ["Indicateur de clause", "Valeur calculée", "Référence institutionnelle"],
+                ["DSCR minimum", f"{min_dscr:.2f}x" if pd.notna(min_dscr) else "N/D", "Cible >= 1,25x - 1,35x"],
+                ["DSCR moyen", f"{avg_dscr:.2f}x" if pd.notna(avg_dscr) else "N/D", "Couverture du service de la dette"],
+                ["Ratio de couverture (LLCR)", f"{llcr:.2f}x" if pd.notna(llcr) else "N/D", "Cible >= 1,40x"],
+                ["Délai de récupération", f"{payback:.1f} ans" if pd.notna(payback) else "N/D", "Récupération des capitaux propres"],
+                ["Évaluation globale", status, "Analyse bancaire automatisée"],
+            ]
+        else:
+            data = [
+                ["Covenant Metric", "Calculated Value", "Institutional Benchmark"],
+                ["Minimum DSCR", f"{min_dscr:.2f}x" if pd.notna(min_dscr) else "N/A", "Target >= 1.25x - 1.35x"],
+                ["Average DSCR", f"{avg_dscr:.2f}x" if pd.notna(avg_dscr) else "N/A", "Debt service coverage over loan life"],
+                ["Loan Life Coverage Ratio (LLCR)", f"{llcr:.2f}x" if pd.notna(llcr) else "N/A", "Target >= 1.40x"],
+                ["Equity Payback Period", f"{payback:.1f} yrs" if pd.notna(payback) else "N/A", "Time to recover initial equity"],
+                ["Covenant Assessment", raw_status, "Automated lender screen"],
+            ]
+        story.append(_styled_table(data, [185, 115, 240]))
+        story.append(Spacer(1, 8))
+
+    has_structuring = (nsr_royalty_pct > 0) or (corporate_tax_rate_pct > 0) or (debt_grace_years > 0)
+    if has_structuring or (tax_waterfall_df is not None and not tax_waterfall_df.empty):
+        story.append(
+            Paragraph(
+                "2. Redevances NSR, impôt des sociétés et différé de dette"
+                if is_fr
+                else "2. Royalty, Corporate Tax & Debt Grace Structuring",
+                banner_style,
+            )
+        )
+        if is_fr:
+            story.append(
+                Paragraph(
+                    f"<b>Redevance NSR :</b> {nsr_royalty_pct:.2f}% &nbsp;|&nbsp; "
+                    f"<b>Taux d'imposition :</b> {corporate_tax_rate_pct:.2f}% &nbsp;|&nbsp; "
+                    f"<b>Différé de remboursement :</b> {int(debt_grace_years)} an(s)",
+                    note_style,
+                )
+            )
+        else:
+            story.append(
+                Paragraph(
+                    f"<b>NSR Royalty:</b> {nsr_royalty_pct:.2f}% &nbsp;|&nbsp; "
+                    f"<b>Corporate Tax Rate:</b> {corporate_tax_rate_pct:.2f}% &nbsp;|&nbsp; "
+                    f"<b>Debt Principal Grace Period:</b> {int(debt_grace_years)} yr(s)",
+                    note_style,
+                )
+            )
+        if tax_waterfall_df is not None and not tax_waterfall_df.empty:
+            wf_data = [
+                ["Année", "Flux avant impôt", "Redevance NSR", "Amortissement", "Impôt", "Flux après impôt"]
+                if is_fr
+                else ["Year", "Pre-Tax CF", "NSR Royalty", "Depr. Shield", "Corp. Tax", "After-Tax CF"]
+            ]
+            yr_prefix = "An" if is_fr else "Yr"
+            for _, r in tax_waterfall_df.iterrows():
+                nsr_v = 0.0 if abs(r["NSR Royalty"]) < 0.5 else r["NSR Royalty"]
+                tax_v = 0.0 if abs(r["Corporate Tax"]) < 0.5 else r["Corporate Tax"]
+                wf_data.append(
+                    [
+                        f"{yr_prefix} {int(r['Year'])}",
+                        f"{currency_symbol}{r['Pre-Tax / Pre-Royalty CF']:,.0f}",
+                        f"{currency_symbol}{nsr_v:,.0f}",
+                        f"{currency_symbol}{r['Depreciation Shield']:,.0f}",
+                        f"{currency_symbol}{tax_v:,.0f}",
+                        f"{currency_symbol}{r['After-Tax Net CF']:,.0f}",
+                    ]
+                )
+            story.append(_styled_table(wf_data, [50, 98, 98, 98, 98, 98]))
+            story.append(Spacer(1, 8))
+
+    if tornado_df is not None and not tornado_df.empty:
+        story.append(
+            Paragraph(
+                "3. Facteurs clés de valeur (Analyse Tornado)"
+                if is_fr
+                else "3. Key Value Drivers (Tornado Sensitivity)",
+                banner_style,
+            )
+        )
+        t_data = [
+            ["Paramètre du modèle", "VAN basse", "VAN haute", "Amplitude VAN"]
+            if is_fr
+            else ["Model Driver", "Downside NPV", "Upside NPV", "Total NPV Swing"]
+        ]
+        for _, r in tornado_df.head(6).iterrows():
+            driver = str(r.get("Driver", r.get("Parameter", r.iloc[0]))).replace("( (", "(").replace("((", "(")
+            low_val = r.get("Low NPV", r.get("Downside NPV", r.iloc[1]))
+            high_val = r.get("High NPV", r.get("Upside NPV", r.iloc[2]))
+            swing = abs(float(high_val) - float(low_val)) if pd.notna(high_val) and pd.notna(low_val) else 0.0
+            t_data.append(
+                [
+                    driver,
+                    f"{currency_symbol}{float(low_val):,.0f}",
+                    f"{currency_symbol}{float(high_val):,.0f}",
+                    f"{currency_symbol}{swing:,.0f}",
+                ]
+            )
+        story.append(_styled_table(t_data, [180, 120, 120, 120]))
+        story.append(Spacer(1, 8))
+
+    if isinstance(mc_stats, dict) and mc_stats:
+        story.append(
+            Paragraph(
+                "4. Analyse probabiliste des risques (Simulation Monte Carlo)"
+                if is_fr
+                else "4. Probabilistic Risk Analysis (Monte Carlo Simulation)",
+                banner_style,
+            )
+        )
+        p10 = mc_stats.get("npv_p10", mc_stats.get("p10", float("nan")))
+        p50 = mc_stats.get("npv_p50", mc_stats.get("p50", float("nan")))
+        p90 = mc_stats.get("npv_p90", mc_stats.get("p90", float("nan")))
+        prob_pos = next((mc_stats[k] for k in ("prob_positive", "prob_npv_positive", "prob_positive_npv", "prob_npv_gt_0", "win_rate") if k in mc_stats), float("nan"))
+        if is_fr:
+            mc_data = [
+                ["Centile / Indicateur simulé", "Résultat simulé"],
+                ["Scénario pessimiste P10 (10e centile)", f"{currency_symbol}{p10:,.0f}" if pd.notna(p10) else "N/D"],
+                ["VAN médiane attendue P50 (50e centile)", f"{currency_symbol}{p50:,.0f}" if pd.notna(p50) else "N/D"],
+                ["Scénario optimiste P90 (90e centile)", f"{currency_symbol}{p90:,.0f}" if pd.notna(p90) else "N/D"],
+                ["Probabilité de VAN positive (> 0)", f"{prob_pos:.1f}%" if pd.notna(prob_pos) else "N/D"],
+            ]
+        else:
+            mc_data = [
+                ["Simulation Percentile / Metric", "Simulated Outcome"],
+                ["P10 Downside Case (10th Percentile)", f"{currency_symbol}{p10:,.0f}" if pd.notna(p10) else "N/A"],
+                ["P50 Median Expected NPV (50th Percentile)", f"{currency_symbol}{p50:,.0f}" if pd.notna(p50) else "N/A"],
+                ["P90 Upside Case (90th Percentile)", f"{currency_symbol}{p90:,.0f}" if pd.notna(p90) else "N/A"],
+                ["Probability of Positive NPV (> 0)", f"{prob_pos:.1f}%" if pd.notna(prob_pos) else "N/A"],
+            ]
+        story.append(_styled_table(mc_data, [320, 220]))
+        story.append(Spacer(1, 8))
+
+    if scenario_df is not None and not scenario_df.empty:
+        story.append(
+            Paragraph(
+                "5. Matrice comparative des scénarios"
+                if is_fr
+                else "5. Executive Scenario Comparison Matrix",
+                banner_style,
+            )
+        )
+        cols = list(scenario_df.columns[:5])
+        col_w = int(540 / max(1, len(cols)))
+        widths = [col_w] * len(cols)
+        widths[0] = 540 - sum(widths[1:])
+        if is_fr:
+            col_fr_map = {
+                "Scenario": "Scénario",
+                "Assumptions": "Hypothèses",
+                "Initial Outlay": "Mise de fonds",
+                "Cumulative Net CF": "Flux net cumulé",
+                "NPV": "VAN",
+                "IRR": "TRI",
+            }
+            header_row = [col_fr_map.get(str(c), str(c)) for c in cols]
+        else:
+            header_row = [str(c) for c in cols]
+        s_data = [header_row]
+        for _, r in scenario_df.iterrows():
+            row_cells = []
+            for c in cols:
+                val = r[c]
+                if isinstance(val, (int, float)) and pd.notna(val):
+                    row_cells.append(f"{val:.2f}%" if "IRR" in str(c) or "%" in str(c) else f"{currency_symbol}{val:,.0f}")
+                else:
+                    row_cells.append(str(val))
+            s_data.append(row_cells)
+        story.append(_styled_table(s_data, widths))
+
+
 def generate_pdf_report(
     selected_scenario,
     npv,
@@ -215,7 +460,18 @@ def generate_pdf_report(
     hurdle_rate,
     currency="$",
     company_name="Investment Appraisal Corp",
+    bankability_result=None,
+    nsr_royalty_pct=0.0,
+    corporate_tax_rate_pct=0.0,
+    debt_grace_years=0,
+    tax_waterfall_df=None,
+    tornado_df=None,
+    mc_stats=None,
+    scenario_df=None,
 ):
+
+
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -276,6 +532,20 @@ def generate_pdf_report(
     )
 
     story.append(table)
+    _append_institutional_reportlab_sections(
+        story=story if "story" in locals() else Story,
+        styles=styles,
+        currency_symbol=currency if "currency" in locals() else currency_symbol,
+        lang=lang if "lang" in locals() else "English",
+        bankability_result=bankability_result,
+        nsr_royalty_pct=nsr_royalty_pct,
+        corporate_tax_rate_pct=corporate_tax_rate_pct,
+        debt_grace_years=debt_grace_years,
+        tax_waterfall_df=tax_waterfall_df,
+        tornado_df=tornado_df,
+        mc_stats=mc_stats,
+        scenario_df=scenario_df,
+    )
     doc.build(story)
 
     buffer.seek(0)
@@ -478,7 +748,7 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("🏛️ Royalty, Tax & Debt Grace")
 
 nsr_royalty_pct = st.sidebar.slider(
-    "NSR Royalty (%)",
+    "Redevance NSR (%)" if lang == "Français" else "Redevance NSR (%)" if lang == "Français" else "NSR Royalty (%)",
     min_value=0.0,
     max_value=10.0,
     value=0.0,
@@ -487,7 +757,7 @@ nsr_royalty_pct = st.sidebar.slider(
 )
 
 corporate_tax_rate_pct = st.sidebar.slider(
-    "Corporate Income Tax Rate (%)",
+    "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'imposition des sociétés (%)" if lang == "Français" else "Corporate Income Tax Rate (%)",
     min_value=0.0,
     max_value=45.0,
     value=26.5,
@@ -496,7 +766,7 @@ corporate_tax_rate_pct = st.sidebar.slider(
 )
 
 debt_grace_years = st.sidebar.number_input(
-    "Debt Principal Grace Period (Years)",
+    "Différé de remboursement du capital (Années)" if lang == "Français" else "Différé de remboursement du capital (Années)" if lang == "Français" else "Debt Principal Grace Period (Years)",
     min_value=0,
     max_value=max(0, int(loan_term) - 1) if loan_term > 1 else 0,
     value=0,
@@ -900,27 +1170,7 @@ df_summary = pd.DataFrame(
     }
 )
 company_name = st.text_input(t["org_name_label"], value="Investment Appraisal Corp")
-pdf_data = generate_pdf_report(
-    selected_scenario=selected_preset_key,
-    npv=npv,
-    irr=irr * 100 if irr is not None and not math.isnan(irr) else 0.0,
-    annual_ds=annual_debt_service,
-    net_outlay=total_initial_outlay,
-    hurdle_rate=hurdle_rate * 100,
-    currency=currency_symbol,
-    company_name=company_name,
-)
-col1, col2 = st.columns(2)
-with col1:
-    st.download_button(
-        label=t["dl_pdf"],
-        data=pdf_data,
-        file_name=f"{selected_preset_key.replace(' ', '_')}_Report.pdf",
-        mime="application/pdf",
-        key="pdf_download_btn",
-    )
-with col2:
-    st.download_button(
+st.download_button(
         label=t["dl_csv"],
         data=df_summary.to_csv(index=False),
         file_name=f"{selected_preset_key.replace(' ', '_')}_Summary.csv",
@@ -937,8 +1187,8 @@ excel_summary_rows = [
     ("Capital & Structuring", "Interest Rate", f"{interest_rate * 100:.2f}%"),
     ("Capital & Structuring", "Loan Term (Years)", int(loan_term)),
     ("Capital & Structuring", "Debt Grace Period (Years)", int(debt_grace_years)),
-    ("Capital & Structuring", "NSR Royalty (%)", f"{nsr_royalty_pct:.2f}%"),
-    ("Capital & Structuring", "Corporate Income Tax Rate (%)", f"{corporate_tax_rate_pct:.2f}%"),
+    ("Capital & Structuring", "Redevance NSR (%)" if lang == "Français" else "Redevance NSR (%)" if lang == "Français" else "NSR Royalty (%)", f"{nsr_royalty_pct:.2f}%"),
+    ("Capital & Structuring", "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'imposition des sociétés (%)" if lang == "Français" else "Corporate Income Tax Rate (%)", f"{corporate_tax_rate_pct:.2f}%"),
 ]
 
 # Safely pull Bankability, Tornado, Scenario & Snapshot tables if defined in current run
@@ -971,7 +1221,7 @@ excel_bytes = build_excel_deal_book(
 )
 
 st.download_button(
-    label="📊 Download Multi-Sheet Excel Deal Book (.xlsx)",
+    label="📊 Télécharger le classeur financier Excel (.xlsx)" if lang == "Français" else "📊 Télécharger le classeur financier Excel (.xlsx)" if lang == "Français" else "📊 Download Multi-Sheet Excel Deal Book (.xlsx)",
     data=excel_bytes,
     file_name="Investment_Appraisal_Deal_Book.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1427,3 +1677,35 @@ with comp_tab2:
             "No custom snapshots saved yet. Configure any template or debt structure in the sidebar, "
             "label it above, and click **📌 Save Snapshot** to compare multiple deals side by side."
         )
+
+# ==============================================================================
+# 📄 EXECUTIVE BOARDROOM PDF REPORT EXPORT (ALL INSTITUTIONAL MODULES INCLUDED)
+# ==============================================================================
+st.markdown("---")
+st.markdown("## 📄 Rapport PDF exécutif complet" if lang == "Français" else "## 📄 Executive Boardroom PDF Report")
+pdf_data = generate_pdf_report(
+    selected_scenario=selected_preset_key,
+    npv=npv,
+    irr=irr * 100 if irr is not None and not math.isnan(irr) else 0.0,
+    annual_ds=annual_debt_service,
+    net_outlay=total_initial_outlay,
+    hurdle_rate=hurdle_rate * 100,
+    currency=currency_symbol,
+    company_name=company_name,
+    bankability_result=locals().get("bankability"),
+    nsr_royalty_pct=nsr_royalty_pct if "nsr_royalty_pct" in locals() else 0.0,
+    corporate_tax_rate_pct=corporate_tax_rate_pct if "corporate_tax_rate_pct" in locals() else 0.0,
+    debt_grace_years=debt_grace_years if "debt_grace_years" in locals() else 0,
+    tax_waterfall_df=tax_waterfall_df if "tax_waterfall_df" in locals() else None,
+    tornado_df=locals().get("tornado_df"),
+    mc_stats=locals().get("mc_summary") or locals().get("mc_stats"),
+    scenario_df=locals().get("three_case_df") if "three_case_df" in locals() else locals().get("scenario_df"),
+)
+st.download_button(
+        label=t["dl_pdf"],
+        data=pdf_data,
+        file_name=f"{selected_preset_key.replace(' ', '_')}_Report.pdf",
+        mime="application/pdf",
+        key="pdf_download_btn",
+    )
+
