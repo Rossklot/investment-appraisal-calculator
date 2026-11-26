@@ -5,6 +5,13 @@ import numpy_financial as npf
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import urllib.parse
+from priority4_differentiators import (
+    JURISDICTION_PRESETS,
+    apply_reclamation_overlay,
+    compute_fire_coast_bridge,
+    evaluate_esg_bankability_overlay,
+)
 import plotly.graph_objects as go
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -61,6 +68,7 @@ TRANSLATIONS = {
         "support_title": "☕ Support My Work",
         "share_title": "🔗 Share This Model",
         "share_caption": "Copy this permalink to share your exact model configuration with clients or partners.",
+
         "feedback_text": "💬 Have feedback or feature ideas? Leave a comment on [GitHub](https://github.com/Rossklot/investment-appraisal-calculator/issues) or reach out directly!",
         "expected_cf": "Expected Cash Flows",
         "year_noi": "Year {} NOI ($)",
@@ -571,9 +579,58 @@ def generate_pdf_report(
 # --- INITIAL PAGE CONFIG ---
 st.set_page_config(page_title="Investment Appraisal Tool", layout="wide")
 
+_persona_labels = {
+    "Individual / Wealth": (
+        "👤 Patrimoine & FIRE" if ("lang" in locals() and lang == "Français") else "👤 Individual & Wealth"
+    ),
+    "Project / Mining": (
+        "⛏️ Projet & Minier" if ("lang" in locals() and lang == "Français") else "⛏️ Project & Mining"
+    ),
+    "Lender / Credit": (
+        "🏦 Prêteur & Crédit" if ("lang" in locals() and lang == "Français") else "🏦 Lender & Credit"
+    ),
+}
+persona_mode = st.segmented_control(
+    "Vue / Profil" if ("lang" in locals() and lang == "Français") else "Audience View",
+    options=["Individual / Wealth", "Project / Mining", "Lender / Credit"],
+    default=st.session_state.get("p45_persona_mode", "Project / Mining"),
+    format_func=lambda k: _persona_labels.get(k, k),
+    key="p45_persona_selector",
+)
+if persona_mode:
+    st.session_state["p45_persona_mode"] = persona_mode
+active_persona = st.session_state.get("p45_persona_mode", "Project / Mining")
+
+p45_is_readonly = str(st.query_params.get("readonly", "0")).strip().lower() in ("1", "true", "yes")
+if p45_is_readonly:
+    st.info(
+        "🔒 **Mode Lecture Seule (Salle des Marchés Partenaire / Prêteur)** — Vue verrouillée pour revue exécutive et export PDF/Excel."
+        if ("lang" in locals() and lang == "Français")
+        else "🔒 **Read-Only Partner / Lender Deal Room View** — Locked presentation view for executive review and PDF/Excel export."
+    )
+    st.markdown(
+        "<style>[data-testid='stSidebar'] {display: none;}</style>",
+        unsafe_allow_html=True,
+    )
+
 # Language Selector Logic
 if "lang" not in st.session_state:
     st.session_state.lang = "EN"
+
+
+if "p45_persona_mode" not in st.session_state:
+    _view_alias = {
+        "individual": "Individual / Wealth",
+        "wealth": "Individual / Wealth",
+        "fire": "Individual / Wealth",
+        "mining": "Project / Mining",
+        "project": "Project / Mining",
+        "developer": "Project / Mining",
+        "lender": "Lender / Credit",
+        "credit": "Lender / Credit",
+        "bank": "Lender / Credit",
+    }
+    st.session_state["p45_persona_mode"] = _view_alias.get(qp_view if "qp_view" in locals() else "", "Project / Mining")
 
 selected_lang = st.sidebar.selectbox(
     "🌐 Language / Langue",
@@ -650,6 +707,7 @@ currency_symbols = {
 st.sidebar.markdown(f"### {t['preset_header']}")
 
 query_params = st.query_params
+qp_view = str(query_params.get("view", "mining")).strip().lower()
 qp_lang = query_params.get("lang", None)
 if qp_lang in ("English", "Français") and "lang" not in st.session_state:
     st.session_state["lang"] = qp_lang
@@ -1731,3 +1789,249 @@ st.download_button(
         key="pdf_download_btn",
     )
 
+
+
+# --- STEP 2: JURISDICTION PRESETS & ESG / RECLAMATION OVERLAY ---
+if active_persona in ("Project / Mining", "Lender / Credit"):
+    st.markdown("---")
+    st.markdown(
+        "### 🌍 Juridiction Minière, Réserve de Fermeture & Profil ESG"
+        if ("lang" in locals() and lang == "Français")
+        else "### 🌍 Jurisdiction Presets, Closure Reserve & ESG Overlay"
+    )
+
+    _jur_keys = list(JURISDICTION_PRESETS.keys())
+    _jur_selected = st.selectbox(
+        "Juridiction / Cadre fiscal" if ("lang" in locals() and lang == "Français") else "Jurisdiction / Tax Regime",
+        options=_jur_keys,
+        index=0,
+        format_func=lambda k: (
+            JURISDICTION_PRESETS[k]["fr_label"]
+            if ("lang" in locals() and lang == "Français")
+            else JURISDICTION_PRESETS[k]["en_label"]
+        ),
+        key="step2_jurisdiction",
+    )
+    _jur_meta = JURISDICTION_PRESETS[_jur_selected]
+    st.caption(
+        f"{_jur_meta['fr_note']} *(Réf. indicative : Redevance NSR ~{_jur_meta['nsr_pct']} %, Impôt ~{_jur_meta['tax_pct']} %)*"
+        if ("lang" in locals() and lang == "Français")
+        else f"{_jur_meta['en_note']} *(Indicative benchmark: NSR ~{_jur_meta['nsr_pct']}%, Tax ~{_jur_meta['tax_pct']}%)*"
+    )
+
+    _c1, _c2, _c3 = st.columns(3)
+    with _c1:
+        _reclam_pct = st.number_input(
+            "Réserve fermeture / réhabilitation (%)"
+            if ("lang" in locals() and lang == "Français")
+            else "Closure / Reclamation Reserve (%)",
+            min_value=0.0,
+            max_value=25.0,
+            value=float(_jur_meta["reclamation_pct"]),
+            step=0.5,
+            key="step2_reclam_pct",
+        )
+    with _c2:
+        _closure_yrs = st.number_input(
+            "Années de fermeture" if ("lang" in locals() and lang == "Français") else "Closure Years",
+            min_value=1,
+            max_value=5,
+            value=2,
+            step=1,
+            key="step2_closure_yrs",
+        )
+    with _c3:
+        _esg_score = st.slider(
+            "Score ESG indicatif (0–100)" if ("lang" in locals() and lang == "Français") else "Indicative ESG Score (0–100)",
+            min_value=0,
+            max_value=100,
+            value=72,
+            step=1,
+            key="step2_esg_score",
+        )
+
+    _esg_notes = st.text_input(
+        "Notes ESG, communautés ou garanties financières"
+        if ("lang" in locals() and lang == "Français")
+        else "ESG, Community or Financial Assurance Notes",
+        value="",
+        placeholder=(
+            "Ex. : Garantie de réhabilitation en cours, dialogue communautaire actif..."
+            if ("lang" in locals() and lang == "Français")
+            else "e.g., Reclamation bond planned, community engagement active..."
+        ),
+        key="step2_esg_notes",
+    )
+
+    _esg_res = evaluate_esg_bankability_overlay(
+        esg_score=int(_esg_score),
+        reclamation_pct=float(_reclam_pct),
+        esg_notes=_esg_notes,
+    )
+    _cf_source = []
+    for _k in ("after_tax_cfs", "net_cash_flows", "cash_flows", "annual_no_debt_cf"):
+        if _k in locals() and isinstance(locals()[_k], (list, tuple)) and len(locals()[_k]) > 0:
+            _cf_source = [float(x) for x in locals()[_k]]
+            break
+    _, _reclam_reserve_amt = apply_reclamation_overlay(
+        cash_flows=_cf_source if _cf_source else [113620077.13, 174800118.67, 174800118.67, 76200059.33],
+        reclamation_pct=float(_reclam_pct),
+        closure_years=int(_closure_yrs),
+    )
+
+    _cur_sym = currency_symbol if "currency_symbol" in locals() else "$"
+    _m1, _m2 = st.columns(2)
+    with _m1:
+        st.metric(
+            "Réserve réhabilitation estimée"
+            if ("lang" in locals() and lang == "Français")
+            else "Est. Reclamation Reserve",
+            f"{_cur_sym}{_reclam_reserve_amt:,.0f}",
+        )
+    with _m2:
+        st.metric(
+            "Score ESG" if ("lang" in locals() and lang == "Français") else "ESG Score",
+            f"{int(_esg_score)} / 100",
+        )
+
+    st.info(
+        f"**{_esg_res['fr_stance'] if ('lang' in locals() and lang == 'Français') else _esg_res['en_stance']}** — "
+        f"{_esg_res['fr_detail'] if ('lang' in locals() and lang == 'Français') else _esg_res['en_detail']}"
+        + (f" | {_esg_res['notes']}" if _esg_res["notes"] else "")
+    )
+
+
+# --- STEP 3: PROJECT-TO-PERSONAL FIRE BRIDGE & CROSS-APP HANDOFF ---
+if active_persona in ("Individual / Wealth", "Project / Mining"):
+    st.markdown("---")
+    st.markdown(
+        "#### 🔥 Pont Projet → Patrimoine Personnel (FIRE / Coast FIRE)"
+        if ("lang" in locals() and lang == "Français")
+        else "#### 🔥 Project-to-Personal Wealth Bridge (FIRE / Coast FIRE)"
+    )
+
+    _f1, _f2, _f3, _f4 = st.columns(4)
+    with _f1:
+        _p4_age = st.number_input(
+            "Âge actuel" if ("lang" in locals() and lang == "Français") else "Current Age",
+            min_value=18,
+            max_value=85,
+            value=38,
+            step=1,
+            key="step3_age",
+        )
+    with _f2:
+        _p4_target_age = st.number_input(
+            "Âge cible FIRE / Coast" if ("lang" in locals() and lang == "Français") else "Target FIRE / Coast Age",
+            min_value=25,
+            max_value=90,
+            value=55,
+            step=1,
+            key="step3_target_age",
+        )
+    with _f3:
+        _p4_spend = st.number_input(
+            "Dépenses annuelles visées" if ("lang" in locals() and lang == "Français") else "Annual Retirement Spend",
+            min_value=10000.0,
+            max_value=500000.0,
+            value=65000.0,
+            step=5000.0,
+            key="step3_spend",
+        )
+    with _f4:
+        _p4_portfolio = st.number_input(
+            "Portefeuille actuel" if ("lang" in locals() and lang == "Français") else "Current Portfolio",
+            min_value=0.0,
+            max_value=25000000.0,
+            value=150000.0,
+            step=10000.0,
+            key="step3_portfolio",
+        )
+
+    _cf_base = []
+    for _cf_key in ("after_tax_cfs", "net_cash_flows", "cash_flows", "annual_no_debt_cf"):
+        if _cf_key in locals() and isinstance(locals()[_cf_key], (list, tuple)) and len(locals()[_cf_key]) > 0:
+            _cf_base = [float(x) for x in locals()[_cf_key]]
+            break
+    if not _cf_base:
+        _cf_base = [113620077.13, 174800118.67, 174800118.67, 76200059.33]
+
+    _reclam_val = float(locals().get("_reclam_pct", 0.0))
+    _closure_val = int(locals().get("_closure_yrs", 2))
+    _adj_cfs, _ = apply_reclamation_overlay(
+        cash_flows=_cf_base,
+        reclamation_pct=_reclam_val,
+        closure_years=_closure_val,
+    )
+    _equity_proceeds_est = max(0.0, sum(max(0.0, x) for x in _adj_cfs))
+
+    _fire_res = compute_fire_coast_bridge(
+        equity_proceeds_total=_equity_proceeds_est,
+        current_age=int(_p4_age),
+        target_fire_age=int(_p4_target_age),
+        annual_retirement_spend=float(_p4_spend),
+        current_portfolio=float(_p4_portfolio),
+    )
+
+    _cur_sym = currency_symbol if "currency_symbol" in locals() else "$"
+    _lang_val = lang if "lang" in locals() else "English"
+
+    _fm1, _fm2, _fm3, _fm4 = st.columns(4)
+    with _fm1:
+        st.metric(
+            "Objectif FIRE (4 %)" if _lang_val == "Français" else "FIRE Number (4%)",
+            f"{_cur_sym}{_fire_res['fire_number']:,.0f}",
+        )
+    with _fm2:
+        st.metric(
+            "Cap Coast FIRE aujourd'hui" if _lang_val == "Français" else "Coast FIRE Target Today",
+            f"{_cur_sym}{_fire_res['coast_fire_target_today']:,.0f}",
+        )
+    with _fm3:
+        _coast_status = (
+            ("Atteint" if _fire_res["coast_achieved"] else "En progression")
+            if _lang_val == "Français"
+            else ("Achieved" if _fire_res["coast_achieved"] else "In Progress")
+        )
+        st.metric(
+            "Statut Coast FIRE" if _lang_val == "Français" else "Coast FIRE Status",
+            _coast_status,
+        )
+    with _fm4:
+        _est_age = _fire_res["estimated_fire_age"]
+        if _est_age is not None:
+            _est_age_label = f"{_est_age} ans" if _lang_val == "Français" else f"{_est_age} yrs"
+        else:
+            _est_age_label = "N/A"
+        st.metric(
+            "Âge FIRE estimé (post-projet)" if _lang_val == "Français" else "Est. FIRE Age (Post-Deal)",
+            _est_age_label,
+        )
+
+    _fire_launch_url = (
+        "https://kabamba-fire-calculator.streamlit.app/"
+        f"?portfolio={_fire_res['post_deal_portfolio']:.0f}"
+        f"&spend={float(_p4_spend):.0f}"
+        f"&age={int(_p4_age)}"
+        f"&target_age={int(_p4_target_age)}"
+        f"&currency={urllib.parse.quote(_cur_sym)}"
+        f"&lang={urllib.parse.quote(_lang_val)}"
+    )
+    st.link_button(
+        "🚀 Ouvrir dans le Calculateur FIRE & Coast FIRE (kabamba.org)"
+        if _lang_val == "Français"
+        else "🚀 Launch in Kabamba FIRE & Coast FIRE Goal Tracker (kabamba.org)",
+        url=_fire_launch_url,
+        use_container_width=True,
+    )
+
+
+# --- STEP 4: KABAMBA.ORG ECOSYSTEM POSITIONING ---
+st.markdown("---")
+st.caption(
+    "**kabamba.org** — Outils d'analyse financière et patrimoniale de calibre institutionnel pour minières juniors, promoteurs de projets, prêteurs et investisseurs individuels. "
+    "[Calculateur FIRE & Coast FIRE](https://kabamba-fire-calculator.streamlit.app/)"
+    if ("lang" in locals() and lang == "Français")
+    else "**kabamba.org** — Institutional-style capital, bankability, and wealth tools for junior miners, project developers, lenders, and individual investors. "
+    "[FIRE & Coast FIRE Goal Tracker](https://kabamba-fire-calculator.streamlit.app/)"
+)
