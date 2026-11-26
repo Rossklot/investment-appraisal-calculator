@@ -218,6 +218,8 @@ def _append_institutional_reportlab_sections(
     mc_stats=None,
     scenario_df=None,
 ):
+    if lang != "Français":
+        lang = st.session_state.get("lang", lang)
     from reportlab.lib import colors
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
@@ -367,6 +369,19 @@ def _append_institutional_reportlab_sections(
         ]
         for _, r in tornado_df.head(6).iterrows():
             driver = str(r.get("Driver", r.get("Parameter", r.iloc[0]))).replace("( (", "(").replace("((", "(")
+            if is_fr:
+                for en_k, fr_v in [
+                    ("Commodity Price", "Prix des matières premières"),
+                    ("AISC/Operating Cost", "Coût AISC / Exploitation"),
+                    ("AISC / Operating Cost", "Coût AISC / Exploitation"),
+                    ("Head Grade", "Teneur de tête"),
+                    ("Metallurgical Recovery", "Récupération métallurgique"),
+                    ("Discount / Hurdle Rate", "Taux d'actualisation"),
+                    ("Initial CapEx", "CapEx initial"),
+                    ("Annual Cash Inflows", "Flux de trésorerie annuels"),
+                    ("Loan Interest Rate", "Taux d'intérêt du prêt"),
+                ]:
+                    driver = driver.replace(en_k, fr_v)
             low_val = r.get("Low NPV", r.get("Downside NPV", r.iloc[1]))
             high_val = r.get("High NPV", r.get("Upside NPV", r.iloc[2]))
             swing = abs(float(high_val) - float(low_val)) if pd.notna(high_val) and pd.notna(low_val) else 0.0
@@ -467,8 +482,9 @@ def generate_pdf_report(
     tax_waterfall_df=None,
     tornado_df=None,
     mc_stats=None,
-    scenario_df=None,
-):
+    scenario_df=None, lang="English"):
+    if lang != "Français":
+        lang = st.session_state.get("lang", lang)
 
 
 
@@ -508,7 +524,7 @@ def generate_pdf_report(
     story.append(Spacer(1, 10))
 
     data = [
-        ["Metric", "Value"],
+        ["Indicateur" if lang == "Français" else "Metric", "Valeur" if lang == "Français" else "Value"],
         [t["npv_label"], f"{currency}{npv:,.2f}"],
         [t["irr_label"], f"{irr:.2f}%" if not math.isnan(irr) else "N/A"],
         [t["hurdle_rate"], f"{hurdle_rate:.2f}%"],
@@ -748,7 +764,7 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("🏛️ Royalty, Tax & Debt Grace")
 
 nsr_royalty_pct = st.sidebar.slider(
-    "Redevance NSR (%)" if lang == "Français" else "Redevance NSR (%)" if lang == "Français" else "NSR Royalty (%)",
+    "Redevance NSR (%)" if lang == "Français" else "Redevance NSR (%)" if lang == "Français" else "Redevance NSR (%)" if lang == "Français" else "NSR Royalty (%)",
     min_value=0.0,
     max_value=10.0,
     value=0.0,
@@ -757,7 +773,7 @@ nsr_royalty_pct = st.sidebar.slider(
 )
 
 corporate_tax_rate_pct = st.sidebar.slider(
-    "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'imposition des sociétés (%)" if lang == "Français" else "Corporate Income Tax Rate (%)",
+    "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'impôt sur les sociétés (%)" if lang == "Français" else "Corporate Income Tax Rate (%)",
     min_value=0.0,
     max_value=45.0,
     value=26.5,
@@ -766,7 +782,7 @@ corporate_tax_rate_pct = st.sidebar.slider(
 )
 
 debt_grace_years = st.sidebar.number_input(
-    "Différé de remboursement du capital (Années)" if lang == "Français" else "Différé de remboursement du capital (Années)" if lang == "Français" else "Debt Principal Grace Period (Years)",
+    "Différé de remboursement du capital (Années)" if lang == "Français" else "Différé de remboursement du capital (Années)" if lang == "Français" else "Différé de remboursement du capital (Années)" if lang == "Français" else "Période de grâce du capital (Années)" if lang == "Français" else "Debt Principal Grace Period (Years)",
     min_value=0,
     max_value=max(0, int(loan_term) - 1) if loan_term > 1 else 0,
     value=0,
@@ -1135,7 +1151,7 @@ fig = px.bar(
 st.plotly_chart(fig, use_container_width=True)
 st.dataframe(df, use_container_width=True)
 if not tax_waterfall_df.empty and (nsr_royalty_pct > 0 or corporate_tax_rate_pct > 0):
-    with st.expander("🏛️ View NSR Royalty & After-Tax Cash Flow Waterfall", expanded=False):
+    with st.expander("🏛️ Voir la cascade de redevances NSR et flux après impôt" if lang == "Français" else "🏛️ Voir la cascade redevance NSR et flux après impôts" if lang == "Français" else "🏛️ View NSR Royalty & After-Tax Cash Flow Waterfall", expanded=False):
         fmt_waterfall = tax_waterfall_df.copy()
         for col in [
             "Pre-Tax / Pre-Royalty CF",
@@ -1151,7 +1167,7 @@ if not tax_waterfall_df.empty and (nsr_royalty_pct > 0 or corporate_tax_rate_pct
 # --- SUMMARY DATAFRAME FOR CSV & PDF DOWNLOAD ---
 df_summary = pd.DataFrame(
     {
-        "Metric": [
+        "Indicateur" if lang == "Français" else "Metric": [
             t["loan_amount"],
             t["net_outlay"],
             t["annual_ds"],
@@ -1159,7 +1175,7 @@ df_summary = pd.DataFrame(
             t["irr_label"],
             t["hurdle_rate"],
         ],
-        "Value": [
+        "Valeur" if lang == "Français" else "Value": [
             f"{currency_symbol}{loan_amount:,.2f}",
             f"{currency_symbol}{total_initial_outlay:,.2f}",
             f"{currency_symbol}{annual_debt_service:,.2f}",
@@ -1187,8 +1203,8 @@ excel_summary_rows = [
     ("Capital & Structuring", "Interest Rate", f"{interest_rate * 100:.2f}%"),
     ("Capital & Structuring", "Loan Term (Years)", int(loan_term)),
     ("Capital & Structuring", "Debt Grace Period (Years)", int(debt_grace_years)),
-    ("Capital & Structuring", "Redevance NSR (%)" if lang == "Français" else "Redevance NSR (%)" if lang == "Français" else "NSR Royalty (%)", f"{nsr_royalty_pct:.2f}%"),
-    ("Capital & Structuring", "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'imposition des sociétés (%)" if lang == "Français" else "Corporate Income Tax Rate (%)", f"{corporate_tax_rate_pct:.2f}%"),
+    ("Capital & Structuring", "Redevance NSR (%)" if lang == "Français" else "Redevance NSR (%)" if lang == "Français" else "Redevance NSR (%)" if lang == "Français" else "NSR Royalty (%)", f"{nsr_royalty_pct:.2f}%"),
+    ("Capital & Structuring", "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'imposition des sociétés (%)" if lang == "Français" else "Taux d'impôt sur les sociétés (%)" if lang == "Français" else "Corporate Income Tax Rate (%)", f"{corporate_tax_rate_pct:.2f}%"),
 ]
 
 # Safely pull Bankability, Tornado, Scenario & Snapshot tables if defined in current run
@@ -1221,7 +1237,7 @@ excel_bytes = build_excel_deal_book(
 )
 
 st.download_button(
-    label="📊 Télécharger le classeur financier Excel (.xlsx)" if lang == "Français" else "📊 Télécharger le classeur financier Excel (.xlsx)" if lang == "Français" else "📊 Download Multi-Sheet Excel Deal Book (.xlsx)",
+    label="📊 Télécharger le classeur financier Excel (.xlsx)" if lang == "Français" else "📊 Télécharger le classeur financier Excel (.xlsx)" if lang == "Français" else "📊 Télécharger le classeur financier Excel (.xlsx)" if lang == "Français" else "📊 Download Multi-Sheet Excel Deal Book (.xlsx)",
     data=excel_bytes,
     file_name="Investment_Appraisal_Deal_Book.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1339,7 +1355,7 @@ with st.expander(t.get("audit_expander", "📊 Debt Service Coverage & Sensitivi
 # ==============================================================================
 st.markdown("---")
 st.markdown("## 🧠 Decision Intelligence & Credit Committee Screening")
-st.caption("Automated senior-debt bankability audit, ranked Tornado sensitivity, and stochastic Monte Carlo risk modeling.")
+st.caption("Audit automatisé de bancabilité de la dette senior, analyse Tornado classée et modélisation stochastique Monte Carlo." if lang == "Français" else "Automated senior-debt bankability audit, ranked Tornado sensitivity, and stochastic Monte Carlo risk modeling.")
 
 # 1. Automated Bankability / Covenant Flag
 bankability = evaluate_bankability(
@@ -1386,12 +1402,12 @@ for r in bankability["reasons_pass"]:
 
 # 2. Tabs for Tornado Sensitivity & Monte Carlo Simulation
 tab_tornado, tab_mc = st.tabs(
-    ["🌪️ Tornado Driver Ranking", "🎲 Monte Carlo Simulation (500–1,000 Draws)"]
+    ["🌪️ Classement des Facteurs Tornado" if lang == "Français" else "🌪️ Tornado Driver Ranking", "🎲 Simulation Monte Carlo (500 à 1 000 tirages)" if lang == "Français" else "🎲 Monte Carlo Simulation (500–1,000 Draws)"]
 )
 
 with tab_tornado:
     shock_pct = (
-        st.slider("Parameter Perturbation Shock (±%)", min_value=5, max_value=30, value=15, step=5)
+        st.slider("Choc de perturbation des paramètres (±%)" if lang == "Français" else "Parameter Perturbation Shock (±%)", min_value=5, max_value=30, value=15, step=5)
         / 100.0
     )
     sidebar_total_cap = max(1.0, loan_amount + initial_equity)
@@ -1483,7 +1499,7 @@ with tab_mc:
 
     pct_table = pd.DataFrame(
         {
-            "Metric": ["NPV", "IRR (%)", "Min DSCR (x)"],
+            "Indicateur" if lang == "Français" else "Metric": ["NPV", "IRR (%)", "Min DSCR (x)"],
             "P10 (Conservative)": [
                 f"{currency_symbol}{mc_summary['npv_p10']:,.0f}",
                 f"{mc_summary['irr_p10']:.1f}%",
@@ -1528,14 +1544,14 @@ if "deal_snapshots" not in st.session_state:
     st.session_state.deal_snapshots = []
 
 comp_tab1, comp_tab2 = st.tabs(
-    ["⚖️ Downside / Base / Upside Matrix", "📌 Saved Deal Snapshots"]
+    ["⚖️ Matrice Pessimiste / Base / Optimiste" if lang == "Français" else "⚖️ Downside / Base / Upside Matrix", "📌 Instantanés de Transactions Enregistrés" if lang == "Français" else "📌 Saved Deal Snapshots"]
 )
 
 with comp_tab1:
     sc1, sc2, sc3 = st.columns(3)
     with sc1:
         down_price_pct = st.slider(
-            "Downside Price / Inflow Shock (%)",
+            "Choc Pessimiste Prix / Revenus (%)" if lang == "Français" else "Downside Price / Inflow Shock (%)",
             min_value=-40,
             max_value=-5,
             value=-15,
@@ -1544,7 +1560,7 @@ with comp_tab1:
         )
     with sc2:
         down_opex_pct = st.slider(
-            "Downside OpEx / AISC Shock (%)",
+            "Choc Pessimiste Coûts OpEx / AISC (%)" if lang == "Français" else "Downside OpEx / AISC Shock (%)",
             min_value=0,
             max_value=35,
             value=10,
@@ -1553,7 +1569,7 @@ with comp_tab1:
         )
     with sc3:
         up_price_pct = st.slider(
-            "Upside Price / Inflow Shock (%)",
+            "Choc Optimiste Prix / Revenus (%)" if lang == "Français" else "Upside Price / Inflow Shock (%)",
             min_value=5,
             max_value=40,
             value=15,
@@ -1704,7 +1720,7 @@ pdf_data = generate_pdf_report(
 st.download_button(
         label=t["dl_pdf"],
         data=pdf_data,
-        file_name=f"{selected_preset_key.replace(' ', '_')}_Report.pdf",
+        file_name=f"{selected_preset_key.replace(' ', '_')}_Rapport.pdf" if lang == "Français" else "_Report.pdf",
         mime="application/pdf",
         key="pdf_download_btn",
     )

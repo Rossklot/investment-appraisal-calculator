@@ -1,3 +1,4 @@
+import streamlit as st
 import numpy as np
 import pandas as pd
 import numpy_financial as npf
@@ -228,7 +229,7 @@ def plot_scenario_comparison(df, currency_symbol="$"):
     )
     fig.add_hline(y=0, line_dash="dash", line_color="#64748B")
     fig.update_layout(
-        title="Net Present Value (NPV) Comparison Across Scenarios",
+        title=("Comparaison de la Valeur Actuelle Nette (VAN) par scénario" if st.session_state.get("lang", "English") == "Français" else "Net Present Value (NPV) Comparison Across Scenarios"),
         yaxis_title=f"NPV ({currency_symbol})",
         xaxis_title="",
         template="plotly_white",
