@@ -650,6 +650,12 @@ currency_symbols = {
 st.sidebar.markdown(f"### {t['preset_header']}")
 
 query_params = st.query_params
+qp_lang = query_params.get("lang", None)
+if qp_lang in ("English", "Français") and "lang" not in st.session_state:
+    st.session_state["lang"] = qp_lang
+qp_nsr = float(query_params.get("nsr", 0.0))
+qp_tax = float(query_params.get("tax", 26.5))
+qp_grace = int(float(query_params.get("grace", 0)))
 scenario_keys = list(scenarios.keys())
 
 default_param = query_params.get("scenario", scenario_keys[0])
